@@ -1,0 +1,27 @@
+{
+  "name": "threejs_demo",
+  "version": "1.0.0",
+  "description": "Three.js示例项目",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && gh-pages -d dist"
+  },
+  "homepage": "https://qc932493926.github.io/threejs_demo",
+  "keywords": [
+    "threejs",
+    "3d",
+    "webgl"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "vite": "^5.0.0"
+  }
+}
