@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // 手势类型
-export type SealType = 'fire' | 'water' | 'thunder' | 'wind' | 'earth';
+export type SealType = '火印' | '水印' | '雷印' | '风印' | '土印';
 export type GestureType = 'Open_Palm' | 'Closed_Fist' | 'Pointing_Up' | 'Thumb_Up' | 'Victory' | 'None';
 
 // 手势检测结果
@@ -91,21 +91,21 @@ export interface GameState {
 
 // 手势映射
 export const gestureMapping: Record<GestureType, SealType | null> = {
-  'Open_Palm': 'fire',
-  'Closed_Fist': 'water',
-  'Pointing_Up': 'thunder',
-  'Thumb_Up': 'wind',
-  'Victory': 'earth',
+  'Open_Palm': '火印',
+  'Closed_Fist': '水印',
+  'Pointing_Up': '雷印',
+  'Thumb_Up': '风印',
+  'Victory': '土印',
   'None': null
 };
 
 // 手势Emoji
 export const sealEmojis: Record<SealType, string> = {
-  fire: '🔥',
-  water: '💧',
-  thunder: '⚡',
-  wind: '💨',
-  earth: '🗿'
+  '火印': '🔥',
+  '水印': '💧',
+  '雷印': '⚡',
+  '风印': '💨',
+  '土印': '🗿'
 };
 
 // 预定义忍术
@@ -113,7 +113,7 @@ export const jutsuList: Jutsu[] = [
   {
     id: 'fireball',
     name: '火遁·豪火球之术',
-    seals: ['fire'],
+    seals: ['火印'],
     chakraCost: 20,
     cooldown: 1000,
     damage: 30,
@@ -123,7 +123,7 @@ export const jutsuList: Jutsu[] = [
   {
     id: 'water_dragon',
     name: '水遁·水龙弹之术',
-    seals: ['water'],
+    seals: ['水印'],
     chakraCost: 25,
     cooldown: 1500,
     damage: 35,
@@ -133,7 +133,7 @@ export const jutsuList: Jutsu[] = [
   {
     id: 'lightning',
     name: '雷遁·雷切',
-    seals: ['thunder'],
+    seals: ['雷印'],
     chakraCost: 30,
     cooldown: 2000,
     damage: 50,
@@ -143,7 +143,7 @@ export const jutsuList: Jutsu[] = [
   {
     id: 'wind_blade',
     name: '风遁·风切',
-    seals: ['wind'],
+    seals: ['风印'],
     chakraCost: 15,
     cooldown: 800,
     damage: 25,
@@ -153,7 +153,7 @@ export const jutsuList: Jutsu[] = [
   {
     id: 'earth_wall',
     name: '土遁·土流壁',
-    seals: ['earth'],
+    seals: ['土印'],
     chakraCost: 40,
     cooldown: 3000,
     damage: 0,
@@ -163,7 +163,7 @@ export const jutsuList: Jutsu[] = [
   {
     id: 'fire_thunder_combo',
     name: '火雷爆发',
-    seals: ['fire', 'thunder'],
+    seals: ['火印', '雷印'],
     chakraCost: 50,
     cooldown: 3000,
     damage: 80,
