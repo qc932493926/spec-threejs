@@ -58,6 +58,18 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
     meshRef.current.rotation.y += delta;
   });
 
+  // 清理资源
+  useEffect(() => {
+    return () => {
+      if (enemy.mesh) {
+        enemy.mesh.geometry?.dispose();
+        if (enemy.mesh.material instanceof THREE.Material) {
+          enemy.mesh.material.dispose();
+        }
+      }
+    };
+  }, [enemy.mesh]);
+
   return (
     <mesh ref={meshRef} position={enemy.position.toArray() as [number, number, number]}>
       <cylinderGeometry args={[0.3, 0.3, 1, 16]} />
@@ -123,6 +135,13 @@ function ExplosionParticles({ position, color, onComplete }: { position: THREE.V
     return { geometry: geo, particleCount: count };
   }, [position]);
 
+  // 清理几何体资源
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
   useFrame(() => {
     if (!particlesRef.current) return;
 
@@ -160,10 +179,15 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
   useFrame((_, delta) => {
     if (gameState.isGameOver) return;
 
+    // 基于波次的难度调整
+    const spawnInterval = Math.max(0.8, 2 - gameState.wave * 0.15); // 波次越高，生成越快
+    const maxEnemies = Math.min(8, 3 + gameState.wave); // 波次越高，敌人越多
+    const enemyHealth = 80 + gameState.wave * 20; // 波次越高，敌人越强
+
     // 生成敌人
     enemySpawnTimerRef.current += delta;
-    if (enemySpawnTimerRef.current > 2 && gameState.enemies.length < 4) {
-      const newEnemy = createEnemy();
+    if (enemySpawnTimerRef.current > spawnInterval && gameState.enemies.length < maxEnemies) {
+      const newEnemy = createEnemy(enemyHealth);
       onGameStateUpdate({ enemies: [...gameState.enemies, newEnemy] });
       enemySpawnTimerRef.current = 0;
     }
@@ -210,7 +234,17 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
 
     // 清理死亡敌人
     if (enemiesChanged) {
-      updatedState.enemies = gameState.enemies.filter(e => e.health > 0);
+      const survivingEnemies = gameState.enemies.filter(e => e.health > 0);
+      updatedState.enemies = survivingEnemies;
+
+      // 波次提升：每击败5个敌人提升一波
+      const killCount = gameState.enemies.length - survivingEnemies.length;
+      if (killCount > 0) {
+        const newWave = gameState.wave + Math.floor((gameState.score % 500) / 100);
+        if (newWave > gameState.wave) {
+          updatedState.wave = newWave;
+        }
+      }
     }
 
     // 清理无效忍术
@@ -219,9 +253,9 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
       updatedState.jutsuInstances = activeJutsu;
     }
 
-    // 查克拉恢复
+    // 查克拉恢复（降低速度增加策略性）
     if (gameState.chakra < gameState.maxChakra) {
-      updatedState.chakra = Math.min(gameState.chakra + delta * 5, gameState.maxChakra);
+      updatedState.chakra = Math.min(gameState.chakra + delta * 3, gameState.maxChakra);
     }
 
     // Combo计时器减少
@@ -260,7 +294,7 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
 }
 
 // 创建敌人函数
-function createEnemy(): Enemy {
+function createEnemy(health: number = 100): Enemy {
   const angle = Math.random() * Math.PI * 2;
   const radius = 15;
   const position = new THREE.Vector3(
@@ -278,16 +312,19 @@ function createEnemy(): Enemy {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
 
+  // 根据生命值调整速度（高血量敌人移动较慢）
+  const speedMultiplier = Math.max(0.5, 1 - (health - 100) / 200);
+
   return {
     id: `enemy_${Date.now()}_${Math.random()}`,
     position: position.clone(),
     velocity: new THREE.Vector3(
-      (Math.random() - 0.5) * 2,
-      (Math.random() - 0.5) * 2,
+      (Math.random() - 0.5) * 2 * speedMultiplier,
+      (Math.random() - 0.5) * 2 * speedMultiplier,
       0
     ),
-    health: 100,
-    maxHealth: 100,
+    health,
+    maxHealth: health,
     mesh,
     type: 'basic'
   };
