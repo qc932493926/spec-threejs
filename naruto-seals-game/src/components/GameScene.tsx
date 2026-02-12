@@ -10,28 +10,133 @@ interface GameSceneProps {
   onGameStateUpdate: (state: Partial<GameState>) => void;
 }
 
-// 星空背景组件
+// 动态星空背景组件
 function Starfield() {
   const starsRef = useRef<THREE.Points>(null);
+  const nebulaRef = useRef<THREE.Points>(null);
 
-  const geometry = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(1000 * 3);
+  const { starGeometry, nebulaGeometry } = useMemo(() => {
+    // 主星星
+    const starGeo = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(2000 * 3);
+    const starCols = new Float32Array(2000 * 3);
 
-    for (let i = 0; i < 1000 * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 100;
-      positions[i + 1] = (Math.random() - 0.5) * 100;
-      positions[i + 2] = (Math.random() - 0.5) * 100;
+    for (let i = 0; i < 2000; i++) {
+      const i3 = i * 3;
+      starPositions[i3] = (Math.random() - 0.5) * 150;
+      starPositions[i3 + 1] = (Math.random() - 0.5) * 150;
+      starPositions[i3 + 2] = (Math.random() - 0.5) * 100 - 20;
+
+      // 随机星星颜色（白色、淡蓝、淡黄、淡橙）
+      const colorChoice = Math.random();
+      if (colorChoice < 0.5) {
+        // 白色
+        starCols[i3] = 1;
+        starCols[i3 + 1] = 1;
+        starCols[i3 + 2] = 1;
+      } else if (colorChoice < 0.7) {
+        // 淡蓝
+        starCols[i3] = 0.7;
+        starCols[i3 + 1] = 0.85;
+        starCols[i3 + 2] = 1;
+      } else if (colorChoice < 0.85) {
+        // 淡黄
+        starCols[i3] = 1;
+        starCols[i3 + 1] = 0.95;
+        starCols[i3 + 2] = 0.7;
+      } else {
+        // 淡橙
+        starCols[i3] = 1;
+        starCols[i3 + 1] = 0.8;
+        starCols[i3 + 2] = 0.6;
+      }
     }
 
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starCols, 3));
+
+    // 星云粒子
+    const nebulaGeo = new THREE.BufferGeometry();
+    const nebulaPositions = new Float32Array(500 * 3);
+    const nebulaCols = new Float32Array(500 * 3);
+
+    for (let i = 0; i < 500; i++) {
+      const i3 = i * 3;
+      nebulaPositions[i3] = (Math.random() - 0.5) * 80;
+      nebulaPositions[i3 + 1] = (Math.random() - 0.5) * 60;
+      nebulaPositions[i3 + 2] = -30 - Math.random() * 30;
+
+      // 星云颜色（紫、蓝、粉）
+      const colorChoice = Math.random();
+      if (colorChoice < 0.4) {
+        // 紫色
+        nebulaCols[i3] = 0.5;
+        nebulaCols[i3 + 1] = 0.2;
+        nebulaCols[i3 + 2] = 0.8;
+      } else if (colorChoice < 0.7) {
+        // 蓝色
+        nebulaCols[i3] = 0.2;
+        nebulaCols[i3 + 1] = 0.4;
+        nebulaCols[i3 + 2] = 0.9;
+      } else {
+        // 粉色
+        nebulaCols[i3] = 0.9;
+        nebulaCols[i3 + 1] = 0.3;
+        nebulaCols[i3 + 2] = 0.5;
+      }
+    }
+
+    nebulaGeo.setAttribute('position', new THREE.BufferAttribute(nebulaPositions, 3));
+    nebulaGeo.setAttribute('color', new THREE.BufferAttribute(nebulaCols, 3));
+
+    return {
+      starGeometry: starGeo,
+      nebulaGeometry: nebulaGeo,
+      starColors: starCols,
+      nebulaColors: nebulaCols
+    };
   }, []);
 
+  // 动画效果
+  useFrame(({ clock }) => {
+    const time = clock.getElapsedTime();
+
+    // 星星缓慢移动
+    if (starsRef.current) {
+      starsRef.current.rotation.y = time * 0.01;
+      starsRef.current.rotation.x = Math.sin(time * 0.005) * 0.1;
+    }
+
+    // 星云移动
+    if (nebulaRef.current) {
+      nebulaRef.current.rotation.y = time * 0.02;
+      nebulaRef.current.rotation.z = Math.sin(time * 0.01) * 0.1;
+    }
+  });
+
   return (
-    <points ref={starsRef} geometry={geometry}>
-      <pointsMaterial color={0xffffff} size={0.1} />
-    </points>
+    <>
+      {/* 主星星 */}
+      <points ref={starsRef} geometry={starGeometry}>
+        <pointsMaterial
+          size={0.15}
+          vertexColors
+          transparent
+          opacity={0.9}
+          sizeAttenuation
+        />
+      </points>
+      {/* 星云 */}
+      <points ref={nebulaRef} geometry={nebulaGeometry}>
+        <pointsMaterial
+          size={0.8}
+          vertexColors
+          transparent
+          opacity={0.3}
+          sizeAttenuation
+        />
+      </points>
+    </>
   );
 }
 
