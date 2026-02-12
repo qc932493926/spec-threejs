@@ -24,6 +24,7 @@ function App() {
   });
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [prevWave, setPrevWave] = useState(1);
   const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
@@ -241,15 +242,23 @@ function App() {
 
       {/* 左上角查克拉和Combo */}
       <div className="absolute top-8 left-8 text-white z-10 glass-panel p-4">
-        {/* 静音控制按钮 */}
-        <button
-          onClick={handleToggleMute}
-          className="mb-4 px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
-          title={isMuted ? "开启音效" : "关闭音效"}
-        >
-          <span className="text-2xl">{isMuted ? "🔇" : "🔊"}</span>
-          <span className="text-sm">{isMuted ? "已静音" : "音效开启"}</span>
-        </button>
+        {/* 控制按钮 */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={handleToggleMute}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title={isMuted ? "开启音效" : "关闭音效"}
+          >
+            <span className="text-xl">{isMuted ? "🔇" : "🔊"}</span>
+          </button>
+          <button
+            onClick={() => setIsPaused(!isPaused)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title={isPaused ? "继续游戏" : "暂停游戏"}
+          >
+            <span className="text-xl">{isPaused ? "▶️" : "⏸️"}</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-4 mb-4">
           <span className="text-2xl font-bold">查克拉:</span>
@@ -472,6 +481,36 @@ function App() {
             <div className="mt-8 text-yellow-400 text-xl glass-panel inline-block px-6 py-3">
               <p>💡 提示: 组合不同手印可以释放更强大的忍术!</p>
               <p className="text-orange-300 text-lg mt-1">🔥 + ⚡ = 火雷爆发 (伤害: 80)</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 暂停界面 */}
+      {isPaused && !gameState.isGameOver && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
+          <div className="text-center text-white glass-panel p-12 border-2 border-yellow-500/50">
+            <h1 className="text-6xl font-bold mb-8 text-yellow-400" style={{ textShadow: '0 0 30px rgba(250, 204, 21, 0.8)' }}>
+              ⏸️ 游戏暂停
+            </h1>
+            <p className="text-xl mb-8 text-gray-300">休息一下，调整状态</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setIsPaused(false)}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                ▶️ 继续游戏
+              </button>
+              <button
+                onClick={() => {
+                  setIsPaused(false);
+                  handleReset();
+                  setIsReady(false);
+                }}
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                🔄 重新开始
+              </button>
             </div>
           </div>
         </div>
