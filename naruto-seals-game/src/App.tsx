@@ -310,8 +310,16 @@ function App() {
       </div>
 
       {/* 右下角摄像头（PIP） */}
-      <div className="absolute bottom-8 right-8 w-80 h-60 border-4 border-orange-500 shadow-lg shadow-orange-500/50 rounded-lg overflow-hidden z-10">
-        <div className="relative w-full h-full">
+      <div className="absolute bottom-28 right-8 w-72 h-52 z-10">
+        <div className="relative w-full h-full glass-panel border-2 border-orange-500/50 rounded-xl overflow-hidden shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-shadow">
+          {/* 标题栏 */}
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-600/80 to-red-600/80 px-3 py-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-white text-xs font-bold">手势识别</span>
+            </div>
+            <span className="text-white/70 text-xs">LIVE</span>
+          </div>
           <video
             ref={videoRef}
             className="w-full h-full object-cover transform scale-x-[-1]"
@@ -324,8 +332,9 @@ function App() {
             height={240}
             className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
           />
-          <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
-            摄像头视图
+          {/* 扫描线效果 */}
+          <div className="absolute inset-0 pointer-events-none opacity-20">
+            <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" style={{ top: '50%' }} />
           </div>
         </div>
       </div>
