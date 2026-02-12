@@ -511,9 +511,11 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
       updatedState.jutsuInstances = activeJutsu;
     }
 
-    // 查克拉恢复（降低速度增加策略性）
+    // 查克拉恢复 - 基于波次动态调整
     if (gameState.chakra < gameState.maxChakra) {
-      updatedState.chakra = Math.min(gameState.chakra + delta * 3, gameState.maxChakra);
+      // 波次越高，恢复越快，让高波次也能持续战斗
+      const chakraRegen = 2 + gameState.wave * 0.3;
+      updatedState.chakra = Math.min(gameState.chakra + delta * chakraRegen, gameState.maxChakra);
     }
 
     // Combo计时器减少
