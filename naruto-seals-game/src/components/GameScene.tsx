@@ -435,15 +435,17 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
   useFrame((_, delta) => {
     if (gameState.isGameOver) return;
 
-    // 基于波次的难度调整
-    const spawnInterval = Math.max(0.8, 2 - gameState.wave * 0.15); // 波次越高，生成越快
-    const maxEnemies = Math.min(8, 3 + gameState.wave); // 波次越高，敌人越多
-    const enemyHealth = 80 + gameState.wave * 20; // 波次越高，敌人越强
+    // 基于波次的难度调整 - 更平滑的曲线
+    const wave = gameState.wave;
+    const spawnInterval = Math.max(0.5, 2.5 - wave * 0.12); // 波次越高，生成越快
+    const maxEnemies = Math.min(10, 3 + Math.floor(wave * 0.8)); // 波次越高，敌人越多
+    const enemyHealth = Math.min(300, 60 + wave * 15); // 波次越高，敌人越强（限制最大值）
+    const enemySpeed = Math.min(4, 1.5 + wave * 0.15); // 波次越高，敌人越快
 
     // 生成敌人
     enemySpawnTimerRef.current += delta;
     if (enemySpawnTimerRef.current > spawnInterval && gameState.enemies.length < maxEnemies) {
-      const newEnemy = createEnemy(enemyHealth);
+      const newEnemy = createEnemy(enemyHealth, enemySpeed);
       onGameStateUpdate({ enemies: [...gameState.enemies, newEnemy] });
       enemySpawnTimerRef.current = 0;
     }
@@ -550,7 +552,7 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
 }
 
 // 创建敌人函数
-function createEnemy(health: number = 100): Enemy {
+function createEnemy(health: number = 100, speed: number = 2): Enemy {
   const angle = Math.random() * Math.PI * 2;
   const radius = 15;
   const position = new THREE.Vector3(
@@ -568,15 +570,12 @@ function createEnemy(health: number = 100): Enemy {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
 
-  // 根据生命值调整速度（高血量敌人移动较慢）
-  const speedMultiplier = Math.max(0.5, 1 - (health - 100) / 200);
-
   return {
     id: `enemy_${Date.now()}_${Math.random()}`,
     position: position.clone(),
     velocity: new THREE.Vector3(
-      (Math.random() - 0.5) * 2 * speedMultiplier,
-      (Math.random() - 0.5) * 2 * speedMultiplier,
+      (Math.random() - 0.5) * speed,
+      (Math.random() - 0.5) * speed,
       0
     ),
     health,
