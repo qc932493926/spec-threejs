@@ -24,6 +24,8 @@ function App() {
   });
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [prevWave, setPrevWave] = useState(1);
+  const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
   const gestureCooldownRef = useRef<number>(0);
   const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
@@ -203,6 +205,16 @@ function App() {
     setIsMuted(!isMuted);
   };
 
+  // 检测波次变化并显示公告
+  useEffect(() => {
+    if (gameState.wave > prevWave && isReady) {
+      setShowWaveAnnounce(true);
+      setPrevWave(gameState.wave);
+      const timer = setTimeout(() => setShowWaveAnnounce(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.wave, prevWave, isReady]);
+
   return (
     <div className="relative w-screen h-screen bg-gradient-to-b from-gray-900 to-black overflow-hidden">
       {/* 3D游戏场景 */}
@@ -210,6 +222,22 @@ function App() {
         gameState={gameState}
         onGameStateUpdate={handleGameStateUpdate}
       />
+
+      {/* 波次公告 */}
+      {showWaveAnnounce && (
+        <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+          <div className="text-center wave-announce">
+            <div className="text-8xl font-bold text-orange-500 mb-4" style={{ textShadow: '0 0 40px rgba(249, 115, 22, 0.8)' }}>
+              WAVE {gameState.wave}
+            </div>
+            <div className="text-3xl text-yellow-400">
+              {gameState.wave <= 3 ? '敌人来袭!' :
+               gameState.wave <= 5 ? '难度提升!' :
+               gameState.wave <= 8 ? '危机四伏!' : '最终决战!'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 左上角查克拉和Combo */}
       <div className="absolute top-8 left-8 text-white z-10 glass-panel p-4">
