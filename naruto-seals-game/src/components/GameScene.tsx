@@ -8,7 +8,6 @@ import { audioService } from '../services/audioService';
 interface GameSceneProps {
   gameState: GameState;
   onGameStateUpdate: (state: Partial<GameState>) => void;
-  onJutsuReady: (jutsu: Jutsu) => void;
 }
 
 // 星空背景组件
@@ -171,8 +170,6 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
 
     // 碰撞检测
     const updatedState: Partial<GameState> = {};
-    let scoreChanged = false;
-    let comboChanged = false;
     let enemiesChanged = false;
 
     gameState.jutsuInstances.forEach(jutsu => {
@@ -192,8 +189,6 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
           updatedState.combo = gameState.combo + 1;
           updatedState.comboTimer = 3;
           updatedState.score = gameState.score + 100 * (gameState.combo + 1);
-          scoreChanged = true;
-          comboChanged = true;
 
           // 敌人死亡
           if (enemy.health <= 0) {
@@ -299,8 +294,7 @@ function createEnemy(): Enemy {
 }
 
 // 主场景组件
-export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpdate, onJutsuReady }) => {
-  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpdate }) => {
 
   // 检测手印并发射忍术
   useEffect(() => {

@@ -39,7 +39,7 @@ function App() {
       try {
         // 临时禁用console.error来隐藏MediaPipe的INFO日志
         const originalError = console.error;
-        console.error = (...args: any[]) => {
+        console.error = (...args: unknown[]) => {
           const message = args[0]?.toString() || '';
           // 只过滤MediaPipe的INFO日志，保留真正的错误
           if (message.includes('INFO:') || message.includes('TensorFlow')) {
@@ -209,7 +209,6 @@ function App() {
       <GameScene
         gameState={gameState}
         onGameStateUpdate={handleGameStateUpdate}
-        onJutsuReady={() => {}}
       />
 
       {/* 左上角查克拉和Combo */}
