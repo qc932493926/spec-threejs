@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FilesetResolver, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision';
 import { GameScene } from './components/GameScene';
-import type { GameState, SealType } from './types/index.ts';
+import type { GameState } from './types/index.ts';
 import { sealEmojis } from './types/index.ts';
 import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
