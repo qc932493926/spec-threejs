@@ -304,17 +304,44 @@ function App() {
 
       {/* 底部技能提示 */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-center z-10">
-        <div className="bg-black/70 px-8 py-4 rounded-lg border-2 border-orange-500">
-          <div className="text-sm text-gray-400 mb-2">组合提示</div>
-          <div className="flex gap-4 text-base">
-            <div>🔥 = 火球</div>
-            <div>💧 = 水龙</div>
-            <div>⚡ = 雷切</div>
-            <div>💨 = 风刃</div>
-            <div>🗿 = 土墙</div>
-          </div>
-          <div className="text-xs text-yellow-400 mt-2">
-            🔥 + ⚡ = 火雷爆发!
+        <div className="glass-panel px-8 py-4 border-2 border-orange-500/50 hover:border-orange-400 transition-colors">
+          <div className="text-sm text-orange-400 mb-2 font-bold">忍术速查</div>
+          <div className="flex gap-6 text-base items-center">
+            <div className="flex flex-col items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+              <span className="text-3xl">🔥</span>
+              <span className="text-xs text-gray-300">火球</span>
+              <span className="text-xs text-red-400">伤害30</span>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+              <span className="text-3xl">💧</span>
+              <span className="text-xs text-gray-300">水龙</span>
+              <span className="text-xs text-blue-400">伤害35</span>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+              <span className="text-3xl">⚡</span>
+              <span className="text-xs text-gray-300">雷切</span>
+              <span className="text-xs text-cyan-400">伤害50</span>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+              <span className="text-3xl">💨</span>
+              <span className="text-xs text-gray-300">风刃</span>
+              <span className="text-xs text-green-400">伤害25</span>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+              <span className="text-3xl">🗿</span>
+              <span className="text-xs text-gray-300">土墙</span>
+              <span className="text-xs text-amber-400">防御</span>
+            </div>
+            <div className="w-px h-12 bg-gray-600 mx-2" />
+            <div className="flex flex-col items-center p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+              <div className="flex gap-1 text-xl">
+                <span>🔥</span>
+                <span>+</span>
+                <span>⚡</span>
+              </div>
+              <span className="text-xs text-yellow-400">火雷爆发</span>
+              <span className="text-xs text-orange-400">伤害80!</span>
+            </div>
           </div>
         </div>
       </div>
