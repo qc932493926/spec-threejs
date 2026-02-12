@@ -35,9 +35,18 @@ function Starfield() {
   );
 }
 
-// 敌人组件
+// 敌人组件 - 更炫酷的外观
 function EnemyMesh({ enemy }: { enemy: Enemy }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
+
+  // 获取敌人颜色
+  const enemyColor = useMemo(() => {
+    const baseColor = enemy.mesh.material instanceof THREE.MeshStandardMaterial
+      ? enemy.mesh.material.color
+      : new THREE.Color(0xff0000);
+    return baseColor;
+  }, [enemy.mesh.material]);
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -45,6 +54,9 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
     // 更新位置
     enemy.position.add(enemy.velocity.clone().multiplyScalar(delta));
     meshRef.current.position.copy(enemy.position);
+    if (glowRef.current) {
+      glowRef.current.position.copy(enemy.position);
+    }
 
     // 边界反弹
     if (Math.abs(enemy.position.x) > 12) {
@@ -55,7 +67,12 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
     }
 
     // 旋转
-    meshRef.current.rotation.y += delta;
+    meshRef.current.rotation.y += delta * 2;
+    meshRef.current.rotation.x += delta * 0.5;
+
+    // 脉冲效果
+    const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+    meshRef.current.scale.setScalar(pulse);
   });
 
   // 清理资源
@@ -71,13 +88,29 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
   }, [enemy.mesh]);
 
   return (
-    <mesh ref={meshRef} position={enemy.position.toArray() as [number, number, number]}>
-      <cylinderGeometry args={[0.3, 0.3, 1, 16]} />
-      <meshStandardMaterial
-        color={enemy.mesh.material instanceof THREE.MeshStandardMaterial ? enemy.mesh.material.color : 0xff0000}
-        emissive={new THREE.Color(0.2, 0.2, 0.2)}
-      />
-    </mesh>
+    <group>
+      {/* 主几何体 - 八面体更有动感 */}
+      <mesh ref={meshRef} position={enemy.position.toArray() as [number, number, number]}>
+        <octahedronGeometry args={[0.5, 0]} />
+        <meshStandardMaterial
+          color={enemyColor}
+          emissive={enemyColor}
+          emissiveIntensity={0.5}
+          metalness={0.8}
+          roughness={0.2}
+        />
+      </mesh>
+      {/* 外层光晕 */}
+      <mesh ref={glowRef} position={enemy.position.toArray() as [number, number, number]}>
+        <octahedronGeometry args={[0.7, 0]} />
+        <meshBasicMaterial
+          color={enemyColor}
+          transparent
+          opacity={0.2}
+          side={THREE.BackSide}
+        />
+      </mesh>
+    </group>
   );
 }
 
