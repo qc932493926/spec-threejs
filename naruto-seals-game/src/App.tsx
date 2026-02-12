@@ -206,6 +206,33 @@ function App() {
     setIsMuted(!isMuted);
   };
 
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isReady && !gameState.isGameOver) {
+          setIsPaused(!isPaused);
+        }
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        handleToggleMute();
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        if (gameState.isGameOver || isPaused) {
+          handleReset();
+          setIsPaused(false);
+          if (!isReady) setIsReady(true);
+        }
+      }
+      if (e.key === ' ' && !isReady) {
+        handleStart();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isReady, isPaused, gameState.isGameOver]);
+
   // 检测波次变化并显示公告
   useEffect(() => {
     if (gameState.wave > prevWave && isReady) {
