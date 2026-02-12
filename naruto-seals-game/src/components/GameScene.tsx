@@ -81,9 +81,12 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
   );
 }
 
-// 忍术发射物组件
+// 忍术发射物组件 - 带发光轨迹效果
 function JutsuMesh({ jutsuInstance }: { jutsuInstance: JutsuInstance }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const trailRef = useRef<THREE.Points>(null);
+  const trailPositionsRef = useRef<THREE.Vector3[]>([]);
+  const maxTrailLength = 15;
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -92,6 +95,32 @@ function JutsuMesh({ jutsuInstance }: { jutsuInstance: JutsuInstance }) {
     jutsuInstance.position.add(jutsuInstance.velocity.clone().multiplyScalar(delta));
     meshRef.current.position.copy(jutsuInstance.position);
 
+    // 旋转效果
+    meshRef.current.rotation.x += delta * 5;
+    meshRef.current.rotation.y += delta * 3;
+
+    // 脉冲缩放效果
+    const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+    meshRef.current.scale.setScalar(pulse);
+
+    // 更新轨迹
+    trailPositionsRef.current.unshift(jutsuInstance.position.clone());
+    if (trailPositionsRef.current.length > maxTrailLength) {
+      trailPositionsRef.current.pop();
+    }
+
+    // 更新轨迹几何体
+    if (trailRef.current && trailPositionsRef.current.length > 0) {
+      const positions = new Float32Array(trailPositionsRef.current.length * 3);
+      trailPositionsRef.current.forEach((pos, i) => {
+        positions[i * 3] = pos.x;
+        positions[i * 3 + 1] = pos.y;
+        positions[i * 3 + 2] = pos.z;
+      });
+      trailRef.current.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      trailRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+
     // 减少生命周期
     jutsuInstance.lifetime -= delta;
     if (jutsuInstance.lifetime <= 0) {
@@ -99,22 +128,66 @@ function JutsuMesh({ jutsuInstance }: { jutsuInstance: JutsuInstance }) {
     }
   });
 
+  // 清理轨迹资源
+  useEffect(() => {
+    return () => {
+      if (trailRef.current) {
+        trailRef.current.geometry.dispose();
+        if (trailRef.current.material instanceof THREE.Material) {
+          trailRef.current.material.dispose();
+        }
+      }
+    };
+  }, []);
+
   return (
-    <mesh ref={meshRef} position={jutsuInstance.position.toArray() as [number, number, number]}>
-      <sphereGeometry args={[0.5, 16, 16]} />
-      <meshBasicMaterial color={jutsuInstance.jutsu.color} />
-    </mesh>
+    <group>
+      {/* 主球体 - 发光效果 */}
+      <mesh ref={meshRef} position={jutsuInstance.position.toArray() as [number, number, number]}>
+        <sphereGeometry args={[0.4, 32, 32]} />
+        <meshStandardMaterial
+          color={jutsuInstance.jutsu.color}
+          emissive={jutsuInstance.jutsu.color}
+          emissiveIntensity={2}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      {/* 外层光晕 */}
+      <mesh position={jutsuInstance.position.toArray() as [number, number, number]}>
+        <sphereGeometry args={[0.6, 16, 16]} />
+        <meshBasicMaterial
+          color={jutsuInstance.jutsu.color}
+          transparent
+          opacity={0.3}
+          side={THREE.BackSide}
+        />
+      </mesh>
+      {/* 轨迹点 */}
+      <points ref={trailRef}>
+        <bufferGeometry />
+        <pointsMaterial
+          color={jutsuInstance.jutsu.color}
+          size={0.15}
+          transparent
+          opacity={0.6}
+          sizeAttenuation
+        />
+      </points>
+    </group>
   );
 }
 
-// 爆炸粒子组件
+// 爆炸粒子组件 - 更炫酷的爆炸效果
 function ExplosionParticles({ position, color, onComplete }: { position: THREE.Vector3, color: THREE.Color, onComplete: () => void }) {
   const particlesRef = useRef<THREE.Points>(null);
-  const lifetimeRef = useRef(1);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const lifetimeRef = useRef(1.5);
   const velocitiesRef = useRef<THREE.Vector3[]>([]);
+  const particleScalesRef = useRef<number[]>([]);
 
   const { geometry, particleCount } = useMemo(() => {
-    const count = 20;
+    const count = 40; // 增加粒子数量
     const geo = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
 
@@ -126,11 +199,18 @@ function ExplosionParticles({ position, color, onComplete }: { position: THREE.V
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    velocitiesRef.current = Array.from({ length: count }, () => new THREE.Vector3(
-      (Math.random() - 0.5) * 5,
-      (Math.random() - 0.5) * 5,
-      (Math.random() - 0.5) * 5
-    ));
+    // 创建不同速度的粒子
+    velocitiesRef.current = Array.from({ length: count }, (_, i) => {
+      const angle = (i / count) * Math.PI * 2;
+      const speed = 3 + Math.random() * 4;
+      return new THREE.Vector3(
+        Math.cos(angle) * speed + (Math.random() - 0.5) * 2,
+        Math.sin(angle) * speed + (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 3
+      );
+    });
+
+    particleScalesRef.current = Array.from({ length: count }, () => 0.1 + Math.random() * 0.2);
 
     return { geometry: geo, particleCount: count };
   }, [position]);
@@ -153,6 +233,10 @@ function ExplosionParticles({ position, color, onComplete }: { position: THREE.V
 
     const positions = geometry.attributes.position.array as Float32Array;
     for (let i = 0; i < particleCount; i++) {
+      // 添加减速效果
+      const drag = 0.98;
+      velocitiesRef.current[i].multiplyScalar(drag);
+
       positions[i * 3] += velocitiesRef.current[i].x * 0.016;
       positions[i * 3 + 1] += velocitiesRef.current[i].y * 0.016;
       positions[i * 3 + 2] += velocitiesRef.current[i].z * 0.016;
@@ -160,14 +244,48 @@ function ExplosionParticles({ position, color, onComplete }: { position: THREE.V
     geometry.attributes.position.needsUpdate = true;
 
     if (particlesRef.current.material instanceof THREE.PointsMaterial) {
-      particlesRef.current.material.opacity = lifetimeRef.current;
+      particlesRef.current.material.opacity = Math.min(1, lifetimeRef.current);
+    }
+
+    // 核心闪光缩放
+    if (coreRef.current) {
+      const coreScale = Math.max(0.01, lifetimeRef.current * 2);
+      coreRef.current.scale.setScalar(coreScale);
     }
   });
 
   return (
-    <points ref={particlesRef} geometry={geometry}>
-      <pointsMaterial color={color} size={0.2} transparent opacity={1} />
-    </points>
+    <group>
+      {/* 核心闪光 */}
+      <mesh ref={coreRef} position={position.toArray() as [number, number, number]}>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshBasicMaterial
+          color={new THREE.Color(1, 1, 1)}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+      {/* 外层光晕 */}
+      <mesh position={position.toArray() as [number, number, number]}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={0.3}
+          side={THREE.BackSide}
+        />
+      </mesh>
+      {/* 粒子 */}
+      <points ref={particlesRef} geometry={geometry}>
+        <pointsMaterial
+          color={color}
+          size={0.25}
+          transparent
+          opacity={1}
+          sizeAttenuation
+        />
+      </points>
+    </group>
   );
 }
 
