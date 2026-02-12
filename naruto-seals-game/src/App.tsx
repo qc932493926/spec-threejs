@@ -442,16 +442,44 @@ function App() {
 
       {/* 游戏结束界面 */}
       {gameState.isGameOver && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
-          <div className="text-center text-white">
-            <h1 className="text-6xl font-bold mb-4">游戏结束</h1>
-            <p className="text-4xl mb-8">最终分数: {gameState.score}</p>
-            <p className="text-2xl mb-8">最高连击: {gameState.combo}x</p>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-gray-900/90 to-black/90 flex items-center justify-center z-20">
+          <div className="text-center text-white glass-panel p-12 border-2 border-red-500/50">
+            <h1 className="text-7xl font-bold mb-6 text-red-500" style={{ textShadow: '0 0 30px rgba(239, 68, 68, 0.8)' }}>
+              任务失败
+            </h1>
+            <p className="text-2xl mb-8 text-gray-300">忍者之路充满坎坷...</p>
+
+            {/* 统计数据 */}
+            <div className="grid grid-cols-3 gap-8 mb-8">
+              <div className="glass-panel p-4 border border-orange-500/30">
+                <div className="text-5xl font-bold text-orange-400">{gameState.score}</div>
+                <div className="text-sm text-gray-400 mt-2">最终分数</div>
+              </div>
+              <div className="glass-panel p-4 border border-yellow-500/30">
+                <div className="text-5xl font-bold text-yellow-400">{gameState.combo}x</div>
+                <div className="text-sm text-gray-400 mt-2">最高连击</div>
+              </div>
+              <div className="glass-panel p-4 border border-purple-500/30">
+                <div className="text-5xl font-bold text-purple-400">{gameState.wave}</div>
+                <div className="text-sm text-gray-400 mt-2">到达波次</div>
+              </div>
+            </div>
+
+            {/* 评价 */}
+            <div className="mb-8 p-4 rounded-lg bg-gradient-to-r from-orange-500/20 via-red-500/20 to-orange-500/20 border border-orange-500/30">
+              <p className="text-xl">
+                {gameState.score >= 5000 ? '🌟 传说中的忍者！' :
+                 gameState.score >= 2000 ? '⭐ 精英上忍！' :
+                 gameState.score >= 1000 ? '✨ 中忍水平' :
+                 gameState.score >= 500 ? '📝 下忍入门' : '💪 继续努力！'}
+              </p>
+            </div>
+
             <button
               onClick={handleReset}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-2xl px-12 py-4 rounded-lg font-bold"
+              className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-2xl px-16 py-5 rounded-xl font-bold transition-all transform hover:scale-105 btn-glow border-2 border-orange-400"
             >
-              重新开始
+              🔄 再战一次
             </button>
           </div>
         </div>
