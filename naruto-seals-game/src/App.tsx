@@ -212,11 +212,11 @@ function App() {
       />
 
       {/* 左上角查克拉和Combo */}
-      <div className="absolute top-8 left-8 text-white z-10">
+      <div className="absolute top-8 left-8 text-white z-10 glass-panel p-4">
         {/* 静音控制按钮 */}
         <button
           onClick={handleToggleMute}
-          className="mb-4 px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-colors flex items-center gap-2"
+          className="mb-4 px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
           title={isMuted ? "开启音效" : "关闭音效"}
         >
           <span className="text-2xl">{isMuted ? "🔇" : "🔊"}</span>
@@ -225,39 +225,46 @@ function App() {
 
         <div className="flex items-center gap-4 mb-4">
           <span className="text-2xl font-bold">查克拉:</span>
-          <div className="w-48 h-6 bg-gray-800 border-2 border-blue-400 rounded-full overflow-hidden">
+          <div className="w-48 h-6 bg-gray-800 border-2 border-blue-400 rounded-full overflow-hidden chakra-pulse">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300"
+              className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 transition-all duration-300"
               style={{ width: `${(gameState.chakra / gameState.maxChakra) * 100}%` }}
             />
           </div>
-          <span className="text-xl">{Math.floor(gameState.chakra)}</span>
+          <span className="text-xl font-mono">{Math.floor(gameState.chakra)}</span>
         </div>
 
         {/* 分数 */}
-        <div className="text-3xl font-bold mb-2">
-          分数: {gameState.score}
+        <div className="text-3xl font-bold mb-2 score-fly">
+          分数: <span className="text-yellow-400">{gameState.score}</span>
+        </div>
+
+        {/* 波次显示 */}
+        <div className="text-xl font-bold mb-2 text-orange-400">
+          第 {gameState.wave} 波
         </div>
 
         {/* Combo */}
         {gameState.combo > 1 && (
-          <div className="text-5xl text-yellow-400 animate-pulse font-bold">
+          <div className="text-5xl text-yellow-400 font-bold combo-bounce drop-shadow-lg"
+               style={{ textShadow: '0 0 20px rgba(250, 204, 21, 0.8)' }}>
             {gameState.combo}x COMBO!
           </div>
         )}
       </div>
 
       {/* 右上角当前手印序列 */}
-      <div className="absolute top-8 right-8 text-white z-10">
-        <div className="text-xl mb-2">当前手印:</div>
-        <div className="flex gap-2">
+      <div className="absolute top-8 right-8 text-white z-10 glass-panel p-4">
+        <div className="text-xl mb-2 font-bold">当前手印:</div>
+        <div className="flex gap-2 min-h-[48px] items-center">
           {gameState.currentSeals.length === 0 ? (
-            <div className="text-gray-400 text-sm">等待结印...</div>
+            <div className="text-gray-400 text-sm animate-pulse">等待结印...</div>
           ) : (
             gameState.currentSeals.map((seal, i) => (
               <div
                 key={i}
-                className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center text-2xl border-2 border-yellow-400 shadow-lg"
+                className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-2xl border-2 border-yellow-400 shadow-lg seal-pop neon-border text-orange-400"
+                style={{ animationDelay: `${i * 0.1}s` }}
               >
                 {sealEmojis[seal]}
               </div>
@@ -267,9 +274,9 @@ function App() {
         {gameState.currentSeals.length > 0 && (
           <button
             onClick={() => setGameState(prev => ({ ...prev, currentSeals: [] }))}
-            className="mt-2 text-sm text-red-400 hover:text-red-300"
+            className="mt-2 text-sm text-red-400 hover:text-red-300 transition-colors hover:underline"
           >
-            清除手印
+            ✕ 清除手印
           </button>
         )}
       </div>
@@ -314,76 +321,93 @@ function App() {
 
       {/* 开始界面 */}
       {!isReady && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-20">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
           <div className="text-center text-white max-w-5xl px-8">
-            <h1 className="text-7xl font-bold mb-12 text-orange-500">火影结印游戏</h1>
-            <p className="text-3xl mb-12">使用手势施放忍术，消灭敌人!</p>
+            <h1 className="text-7xl font-bold mb-6 title-shine">火影结印游戏</h1>
+            <p className="text-2xl mb-4 text-gray-300">Naruto Seal Game</p>
+            <p className="text-3xl mb-12 text-orange-300">使用手势施放忍术，消灭敌人!</p>
 
             <button
               onClick={handleStart}
-              className="bg-orange-500 hover:bg-orange-600 text-white text-3xl px-16 py-6 rounded-lg font-bold mb-12 transition-all transform hover:scale-105"
+              className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold mb-12 transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
             >
-              开始游戏
+              🎮 开始游戏
             </button>
 
             <div className="grid grid-cols-2 gap-12 text-left">
               {/* 手势说明 */}
-              <div className="bg-gray-800/50 p-8 rounded-lg border-2 border-blue-500">
+              <div className="glass-panel p-8 border-2 border-blue-500/50 hover:border-blue-400 transition-colors">
                 <h2 className="text-3xl font-bold mb-6 text-blue-400 text-center">手势说明</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">✋</span>
-                    <span className="text-2xl">张开手掌 = 火印 🔥</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">✋</span>
+                    <span className="text-xl">张开手掌 = 火印 🔥</span>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">✊</span>
-                    <span className="text-2xl">握拳 = 水印 💧</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">✊</span>
+                    <span className="text-xl">握拳 = 水印 💧</span>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">☝️</span>
-                    <span className="text-2xl">食指向上 = 雷印 ⚡</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">☝️</span>
+                    <span className="text-xl">食指向上 = 雷印 ⚡</span>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">👍</span>
-                    <span className="text-2xl">拇指向上 = 风印 💨</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">👍</span>
+                    <span className="text-xl">拇指向上 = 风印 💨</span>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">✌️</span>
-                    <span className="text-2xl">V字手势 = 土印 🗿</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">✌️</span>
+                    <span className="text-xl">V字手势 = 土印 🗿</span>
                   </div>
                 </div>
               </div>
 
               {/* 技能说明 */}
-              <div className="bg-gray-800/50 p-8 rounded-lg border-2 border-purple-500">
+              <div className="glass-panel p-8 border-2 border-purple-500/50 hover:border-purple-400 transition-colors">
                 <h2 className="text-3xl font-bold mb-6 text-purple-400 text-center">技能释放</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">🔥</span>
-                    <span className="text-2xl">火遁·豪火球之术</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">🔥</span>
+                    <div>
+                      <span className="text-xl">火遁·豪火球之术</span>
+                      <span className="text-sm text-gray-400 ml-2">伤害: 30</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">💧</span>
-                    <span className="text-2xl">水遁·水龙弹之术</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">💧</span>
+                    <div>
+                      <span className="text-xl">水遁·水龙弹之术</span>
+                      <span className="text-sm text-gray-400 ml-2">伤害: 35</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">⚡</span>
-                    <span className="text-2xl">雷遁·千鸟</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">⚡</span>
+                    <div>
+                      <span className="text-xl">雷遁·千鸟</span>
+                      <span className="text-sm text-gray-400 ml-2">伤害: 50</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">💨</span>
-                    <span className="text-2xl">风遁·螺旋手里剑</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">💨</span>
+                    <div>
+                      <span className="text-xl">风遁·螺旋手里剑</span>
+                      <span className="text-sm text-gray-400 ml-2">伤害: 25</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl">🗿</span>
-                    <span className="text-2xl">土遁·土流壁</span>
+                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className="text-5xl">🗿</span>
+                    <div>
+                      <span className="text-xl">土遁·土流壁</span>
+                      <span className="text-sm text-gray-400 ml-2">防御</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 text-yellow-400 text-xl">
+            <div className="mt-8 text-yellow-400 text-xl glass-panel inline-block px-6 py-3">
               <p>💡 提示: 组合不同手印可以释放更强大的忍术!</p>
+              <p className="text-orange-300 text-lg mt-1">🔥 + ⚡ = 火雷爆发 (伤害: 80)</p>
             </div>
           </div>
         </div>
