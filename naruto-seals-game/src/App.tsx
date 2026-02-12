@@ -315,6 +315,11 @@ function App() {
             {gameState.combo}x COMBO!
           </div>
         )}
+
+        {/* 快捷键提示 */}
+        <div className="mt-4 text-xs text-gray-500 space-y-1">
+          <div>ESC 暂停 | M 静音 | R 重置</div>
+        </div>
       </div>
 
       {/* 右上角当前手印序列 */}
