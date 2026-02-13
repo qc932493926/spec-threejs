@@ -7,6 +7,7 @@ import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
 import { achievementService, type Achievement } from './services/achievementService';
 import { leaderboardService } from './services/leaderboardService';
+import { VERSION } from './version.ts';
 import './index.css';
 
 function App() {
@@ -593,6 +594,11 @@ function App() {
             <div className="mt-8 text-yellow-400 text-xl glass-panel inline-block px-6 py-3">
               <p>💡 提示: 组合不同手印可以释放更强大的忍术!</p>
               <p className="text-orange-300 text-lg mt-1">🔥 + ⚡ = 火雷爆发 (伤害: 80)</p>
+            </div>
+
+            {/* 版本信息 */}
+            <div className="mt-6 text-gray-500 text-sm">
+              Version {VERSION} | Made with ❤️
             </div>
           </div>
         </div>
