@@ -1,8 +1,11 @@
 // 游戏版本信息
-export const VERSION = '1.40.0';
-export const VERSION_NAME = '忍者之道';
+export const VERSION = '1.72.0';
+export const VERSION_NAME = '性能优化';
 
 export const VERSION_HISTORY = [
+  { version: '1.72.0', name: '性能优化', date: '2025-02', changes: ['React性能优化', 'useMemo/useCallback优化', '减少不必要的重渲染', '常量提取优化'] },
+  { version: '1.71.0', name: '音效大师', date: '2025-02', changes: ['环境音效变体', '战场氛围系统', '音频性能优化'] },
+  { version: '1.51.0', name: '忍术大师', date: '2025-02', changes: ['三印终极忍术', '辅助增益忍术', '防御穿透忍术', '忍术稀有度系统'] },
   { version: '1.40.0', name: '忍者之道', date: '2025-02', changes: ['完整游戏功能', '成就系统', '排行榜', '教程引导'] },
   { version: '1.30.0', name: '连击里程碑', date: '2025-02', changes: ['连击奖励系统', '波次加成', '动态查克拉恢复'] },
   { version: '1.20.0', name: '视觉盛宴', date: '2025-02', changes: ['粒子特效', '星空背景', '敌人类型多样性'] },

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { FilesetResolver, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision';
 import { GameScene } from './components/GameScene';
 import type { GameState } from './types/index.ts';
@@ -10,30 +10,36 @@ import { leaderboardService } from './services/leaderboardService';
 import { VERSION } from './version.ts';
 import './index.css';
 
+// 初始游戏状态常量，避免每次渲染创建新对象
+const INITIAL_GAME_STATE: GameState = {
+  chakra: 100,
+  maxChakra: 100,
+  score: 0,
+  combo: 0,
+  comboTimer: 0,
+  currentSeals: [],
+  enemies: [],
+  jutsuInstances: [],
+  isGameOver: false,
+  wave: 1
+};
+
+// 默认设置常量
+const DEFAULT_SETTINGS = {
+  volume: 70,
+  difficulty: 'normal' as const,
+  quality: 'high' as const,
+};
+
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<GameState>({
-    chakra: 100,
-    maxChakra: 100,
-    score: 0,
-    combo: 0,
-    comboTimer: 0,
-    currentSeals: [],
-    enemies: [],
-    jutsuInstances: [],
-    isGameOver: false,
-    wave: 1
-  });
+  const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({
-    volume: 70,
-    difficulty: 'normal' as 'easy' | 'normal' | 'hard',
-    quality: 'high' as 'low' | 'medium' | 'high',
-  });
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [achievementNotification, setAchievementNotification] = useState<Achievement | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -49,6 +55,74 @@ function App() {
   const gestureCooldownRef = useRef<number>(0);
   const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
   const animationFrameRef = useRef<number>(0);
+
+  // 使用useCallback优化事件处理函数
+  const handleGameStateUpdate = useCallback((updates: Partial<GameState>) => {
+    setGameState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const handleStart = useCallback(() => {
+    audioService.resume();
+    setIsReady(true);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    // 在重置前更新成就统计
+    achievementService.updateStats({
+      gamesPlayed: 1,
+    });
+
+    setGameState(INITIAL_GAME_STATE);
+    setPlayerName('');
+    setShowLeaderboard(false);
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    audioService.toggleMute();
+    setIsMuted(prev => !prev);
+  }, []);
+
+  const handleClearSeals = useCallback(() => {
+    setGameState(prev => ({ ...prev, currentSeals: [] }));
+  }, []);
+
+  // 使用useMemo缓存计算结果
+  const chakraPercentage = useMemo(() => {
+    return (gameState.chakra / gameState.maxChakra) * 100;
+  }, [gameState.chakra, gameState.maxChakra]);
+
+  // 缓存难度相关的文本
+  const difficultyInfo = useMemo(() => ({
+    easy: { label: '🌱 简单', desc: '敌人较弱，适合新手练习' },
+    normal: { label: '⚔️ 普通', desc: '标准难度，体验完整游戏' },
+    hard: { label: '💀 困难', desc: '敌人强劲，挑战极限' }
+  }), []);
+
+  // 缓存画质相关的文本
+  const qualityInfo = useMemo(() => ({
+    low: { label: '📉 低', desc: '低画质，提升性能' },
+    medium: { label: '📊 中', desc: '平衡画质与性能' },
+    high: { label: '📈 高', desc: '高画质，最佳视觉体验' }
+  }), []);
+
+  // 缓存评价文本
+  const scoreEvaluation = useMemo(() => {
+    const score = lastScore || gameState.score;
+    if (score >= 5000) return '🌟 传说中的忍者！';
+    if (score >= 2000) return '⭐ 精英上忍！';
+    if (score >= 1000) return '✨ 中忍水平';
+    if (score >= 500) return '📝 下忍入门';
+    return '💪 继续努力！';
+  }, [lastScore, gameState.score]);
+
+  // 波次公告文本
+  const waveAnnounceText = useMemo(() => {
+    const wave = gameState.wave;
+    if (wave <= 3) return '敌人来袭!';
+    if (wave <= 5) return '难度提升!';
+    if (wave <= 8) return '危机四伏!';
+    return '最终决战!';
+  }, [gameState.wave]);
 
   useEffect(() => {
     // 只有在isReady为true时才初始化MediaPipe
@@ -195,37 +269,6 @@ function App() {
     };
   }, [isReady]);
 
-  const handleGameStateUpdate = (updates: Partial<GameState>) => {
-    setGameState(prev => ({ ...prev, ...updates }));
-  };
-
-  const handleStart = () => {
-    audioService.resume();
-    setIsReady(true);
-  };
-
-  const handleReset = () => {
-    // 在重置前更新成就统计
-    achievementService.updateStats({
-      gamesPlayed: 1,
-    });
-
-    setGameState({
-      chakra: 100,
-      maxChakra: 100,
-      score: 0,
-      combo: 0,
-      comboTimer: 0,
-      currentSeals: [],
-      enemies: [],
-      jutsuInstances: [],
-      isGameOver: false,
-      wave: 1
-    });
-    setPlayerName('');
-    setShowLeaderboard(false);
-  };
-
   // 游戏结束时保存分数
   useEffect(() => {
     if (gameState.isGameOver && lastScore === 0) {
@@ -242,11 +285,6 @@ function App() {
     }
   }, [gameState.isGameOver, lastScore]);
 
-  const handleToggleMute = () => {
-    audioService.toggleMute();
-    setIsMuted(!isMuted);
-  };
-
   // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -256,7 +294,7 @@ function App() {
         } else if (showAchievements) {
           setShowAchievements(false);
         } else if (isReady && !gameState.isGameOver) {
-          setIsPaused(!isPaused);
+          setIsPaused(prev => !prev);
         }
       }
       if (e.key === 'm' || e.key === 'M') {
@@ -276,7 +314,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements]);
+  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements, handleToggleMute, handleReset, handleStart]);
 
   // 成就解锁回调
   useEffect(() => {
@@ -315,9 +353,7 @@ function App() {
               WAVE {gameState.wave}
             </div>
             <div className="text-3xl text-yellow-400">
-              {gameState.wave <= 3 ? '敌人来袭!' :
-               gameState.wave <= 5 ? '难度提升!' :
-               gameState.wave <= 8 ? '危机四伏!' : '最终决战!'}
+              {waveAnnounceText}
             </div>
           </div>
         </div>
@@ -335,7 +371,7 @@ function App() {
             <span className="text-xl">{isMuted ? "🔇" : "🔊"}</span>
           </button>
           <button
-            onClick={() => setIsPaused(!isPaused)}
+            onClick={() => setIsPaused(prev => !prev)}
             className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
             title={isPaused ? "继续游戏" : "暂停游戏"}
           >
@@ -362,7 +398,7 @@ function App() {
           <div className="w-48 h-6 bg-gray-800 border-2 border-blue-400 rounded-full overflow-hidden chakra-pulse">
             <div
               className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 transition-all duration-300"
-              style={{ width: `${(gameState.chakra / gameState.maxChakra) * 100}%` }}
+              style={{ width: `${chakraPercentage}%` }}
             />
           </div>
           <span className="text-xl font-mono">{Math.floor(gameState.chakra)}</span>
@@ -412,7 +448,7 @@ function App() {
         </div>
         {gameState.currentSeals.length > 0 && (
           <button
-            onClick={() => setGameState(prev => ({ ...prev, currentSeals: [] }))}
+            onClick={handleClearSeals}
             className="mt-2 text-sm text-red-400 hover:text-red-300 transition-colors hover:underline"
           >
             ✕ 清除手印
@@ -662,10 +698,7 @@ function App() {
             {/* 评价 */}
             <div className="mb-8 p-4 rounded-lg bg-gradient-to-r from-orange-500/20 via-red-500/20 to-orange-500/20 border border-orange-500/30">
               <p className="text-xl">
-                {(lastScore || gameState.score) >= 5000 ? '🌟 传说中的忍者！' :
-                 (lastScore || gameState.score) >= 2000 ? '⭐ 精英上忍！' :
-                 (lastScore || gameState.score) >= 1000 ? '✨ 中忍水平' :
-                 (lastScore || gameState.score) >= 500 ? '📝 下忍入门' : '💪 继续努力！'}
+                {scoreEvaluation}
               </p>
             </div>
 
@@ -826,15 +859,12 @@ function App() {
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {diff === 'easy' ? '🌱 简单' :
-                     diff === 'normal' ? '⚔️ 普通' : '💀 困难'}
+                    {difficultyInfo[diff].label}
                   </button>
                 ))}
               </div>
               <p className="text-sm text-gray-400 mt-2">
-                {settings.difficulty === 'easy' ? '敌人较弱，适合新手练习' :
-                 settings.difficulty === 'normal' ? '标准难度，体验完整游戏' :
-                 '敌人强劲，挑战极限'}
+                {difficultyInfo[settings.difficulty].desc}
               </p>
             </div>
 
@@ -852,15 +882,12 @@ function App() {
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {qual === 'low' ? '📉 低' :
-                     qual === 'medium' ? '📊 中' : '📈 高'}
+                    {qualityInfo[qual].label}
                   </button>
                 ))}
               </div>
               <p className="text-sm text-gray-400 mt-2">
-                {settings.quality === 'low' ? '低画质，提升性能' :
-                 settings.quality === 'medium' ? '平衡画质与性能' :
-                 '高画质，最佳视觉体验'}
+                {qualityInfo[settings.quality].desc}
               </p>
             </div>
 
@@ -877,7 +904,7 @@ function App() {
               </button>
               <button
                 onClick={() => {
-                  setSettings({ volume: 70, difficulty: 'normal', quality: 'high' });
+                  setSettings(DEFAULT_SETTINGS);
                   audioService.playUIClick();
                 }}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-bold transition-all"

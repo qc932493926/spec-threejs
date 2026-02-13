@@ -1,5 +1,20 @@
 import type { SealType } from '../types/index.ts';
 
+// 环境音效类型
+export type EnvironmentType = 'forest' | 'village' | 'battlefield' | 'mountain' | 'night';
+
+// 天气音效类型
+export type WeatherType = 'clear' | 'rain' | 'thunder' | 'wind' | 'snow';
+
+// 音频类别音量配置
+interface VolumeConfig {
+  master: number;
+  bgm: number;
+  sfx: number;
+  environment: number;
+  ui: number;
+}
+
 class NinjaAudioService {
   private context: AudioContext;
   private masterGain: GainNode;
@@ -7,11 +22,31 @@ class NinjaAudioService {
   private jutsuSounds: Map<string, HTMLAudioElement> = new Map();
   private isMuted: boolean = false;
 
+  // v171: 环境音效系统
+  private environmentGain: GainNode;
+  private currentEnvironment: EnvironmentType = 'forest';
+  private environmentNodes: OscillatorNode[] = [];
+  private environmentInterval: ReturnType<typeof setInterval> | null = null;
+
+  // 音量配置
+  private volumeConfig: VolumeConfig = {
+    master: 0.3,
+    bgm: 0.3,
+    sfx: 0.5,
+    environment: 0.15,
+    ui: 0.2
+  };
+
   constructor() {
     this.context = new AudioContext();
     this.masterGain = this.context.createGain();
-    this.masterGain.gain.value = 0.3;
+    this.masterGain.gain.value = this.volumeConfig.master;
     this.masterGain.connect(this.context.destination);
+
+    // 环境音效增益节点
+    this.environmentGain = this.context.createGain();
+    this.environmentGain.gain.value = this.volumeConfig.environment;
+    this.environmentGain.connect(this.masterGain);
 
     // 预加载音频文件
     this.preloadAudio();
@@ -22,7 +57,7 @@ class NinjaAudioService {
     // 背景音乐
     this.bgMusic = new Audio('/audio/游戏bgm.mp3');
     this.bgMusic.loop = true;
-    this.bgMusic.volume = 0.3;
+    this.bgMusic.volume = this.volumeConfig.bgm;
 
     // 忍术音效
     const jutsuFiles: Record<SealType, string> = {
@@ -36,7 +71,7 @@ class NinjaAudioService {
     // 预加载所有忍术音效
     Object.entries(jutsuFiles).forEach(([seal, file]) => {
       const audio = new Audio(file);
-      audio.volume = 0.5;
+      audio.volume = this.volumeConfig.sfx;
       this.jutsuSounds.set(seal, audio);
     });
 
@@ -45,6 +80,282 @@ class NinjaAudioService {
     comboAudio.volume = 0.6;
     this.jutsuSounds.set('fire_thunder_combo', comboAudio);
   }
+
+  // ==================== 环境音效系统 (v171) ====================
+
+  // 播放环境音效（使用Web Audio API合成）
+  startEnvironmentSound(environment: EnvironmentType) {
+    if (this.isMuted) return;
+
+    this.currentEnvironment = environment;
+    this.stopEnvironmentSound();
+
+    // 根据环境类型生成不同的背景音效
+    switch (environment) {
+      case 'forest':
+        this.playForestAmbience();
+        break;
+      case 'village':
+        this.playVillageAmbience();
+        break;
+      case 'battlefield':
+        this.playBattlefieldAmbience();
+        break;
+      case 'mountain':
+        this.playMountainAmbience();
+        break;
+      case 'night':
+        this.playNightAmbience();
+        break;
+    }
+  }
+
+  // 森林环境音 - 鸟鸣和风声
+  private playForestAmbience() {
+    // 低频风声背景
+    this.createDroneSound(80, 'sine', 0.08);
+
+    // 随机鸟鸣效果
+    this.environmentInterval = setInterval(() => {
+      if (this.isMuted || this.currentEnvironment !== 'forest') return;
+      if (Math.random() > 0.7) {
+        this.playBirdChirp();
+      }
+    }, 2000);
+  }
+
+  // 村庄环境音 - 宁静和谐
+  private playVillageAmbience() {
+    // 温暖的和弦背景
+    this.createDroneSound(130, 'sine', 0.06);
+    this.createDroneSound(196, 'sine', 0.04);
+
+    // 偶尔的钟声
+    this.environmentInterval = setInterval(() => {
+      if (this.isMuted || this.currentEnvironment !== 'village') return;
+      if (Math.random() > 0.8) {
+        this.playVillageBell();
+      }
+    }, 5000);
+  }
+
+  // 战场环境音 - 紧张激烈
+  private playBattlefieldAmbience() {
+    // 低沉的战鼓节奏
+    this.createDroneSound(60, 'sawtooth', 0.05);
+
+    // 战鼓节拍
+    this.environmentInterval = setInterval(() => {
+      if (this.isMuted || this.currentEnvironment !== 'battlefield') return;
+      this.playWarDrum();
+    }, 1500);
+  }
+
+  // 山岳环境音 - 空旷回响
+  private playMountainAmbience() {
+    // 风声呼啸
+    this.createDroneSound(100, 'triangle', 0.07);
+
+    // 回声效果
+    this.environmentInterval = setInterval(() => {
+      if (this.isMuted || this.currentEnvironment !== 'mountain') return;
+      if (Math.random() > 0.85) {
+        this.playMountainEcho();
+      }
+    }, 4000);
+  }
+
+  // 夜晚环境音 - 虫鸣神秘
+  private playNightAmbience() {
+    // 低沉神秘的背景
+    this.createDroneSound(55, 'sine', 0.05);
+
+    // 虫鸣效果
+    this.environmentInterval = setInterval(() => {
+      if (this.isMuted || this.currentEnvironment !== 'night') return;
+      this.playCricketSound();
+    }, 800);
+  }
+
+  // 创建持续的低频背景音
+  private createDroneSound(frequency: number, type: OscillatorType, volume: number) {
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    const filter = this.context.createBiquadFilter();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+
+    // 添加轻微的频率波动
+    const lfo = this.context.createOscillator();
+    const lfoGain = this.context.createGain();
+    lfo.frequency.setValueAtTime(0.2, this.context.currentTime);
+    lfoGain.gain.setValueAtTime(frequency * 0.02, this.context.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscillator.frequency);
+    lfo.start();
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(frequency * 4, this.context.currentTime);
+
+    gainNode.gain.setValueAtTime(volume, this.context.currentTime);
+
+    oscillator.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.environmentGain);
+
+    oscillator.start();
+    this.environmentNodes.push(oscillator, lfo);
+  }
+
+  // 鸟鸣音效
+  private playBirdChirp() {
+    const baseFreq = 1500 + Math.random() * 1000;
+    const duration = 0.1 + Math.random() * 0.15;
+
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(baseFreq, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 1.3, this.context.currentTime + duration * 0.3);
+    oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 0.9, this.context.currentTime + duration);
+
+    gainNode.gain.setValueAtTime(0.03, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.environmentGain);
+
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + duration);
+  }
+
+  // 村庄钟声
+  private playVillageBell() {
+    const frequencies = [523, 659, 784]; // C major chord
+
+    frequencies.forEach((freq, index) => {
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, this.context.currentTime);
+
+      const startTime = this.context.currentTime + index * 0.02;
+      gainNode.gain.setValueAtTime(0.04, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 2);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.environmentGain);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 2);
+    });
+  }
+
+  // 战鼓音效
+  private playWarDrum() {
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    const filter = this.context.createBiquadFilter();
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(80, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(40, this.context.currentTime + 0.3);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(200, this.context.currentTime);
+
+    gainNode.gain.setValueAtTime(0.08, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.3);
+
+    oscillator.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.environmentGain);
+
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.3);
+  }
+
+  // 山岳回声
+  private playMountainEcho() {
+    const freq = 300 + Math.random() * 200;
+
+    for (let i = 0; i < 3; i++) {
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, this.context.currentTime);
+
+      const delay = i * 0.3;
+      const volume = 0.04 / (i + 1);
+
+      gainNode.gain.setValueAtTime(volume, this.context.currentTime + delay);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + delay + 0.5);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.environmentGain);
+
+      oscillator.start(this.context.currentTime + delay);
+      oscillator.stop(this.context.currentTime + delay + 0.5);
+    }
+  }
+
+  // 虫鸣音效
+  private playCricketSound() {
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    // 高频颤动
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(4000, this.context.currentTime);
+
+    // 调制频率
+    const lfo = this.context.createOscillator();
+    const lfoGain = this.context.createGain();
+    lfo.frequency.setValueAtTime(15, this.context.currentTime);
+    lfoGain.gain.setValueAtTime(500, this.context.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscillator.frequency);
+    lfo.start();
+
+    gainNode.gain.setValueAtTime(0.015, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.environmentGain);
+
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.1);
+    lfo.stop(this.context.currentTime + 0.1);
+  }
+
+  // 停止环境音效
+  stopEnvironmentSound() {
+    if (this.environmentInterval) {
+      clearInterval(this.environmentInterval);
+      this.environmentInterval = null;
+    }
+
+    this.environmentNodes.forEach(node => {
+      try {
+        node.stop();
+      } catch {
+        // 忽略已停止的节点
+      }
+    });
+    this.environmentNodes = [];
+  }
+
+  // 设置环境音量
+  setEnvironmentVolume(volume: number) {
+    this.volumeConfig.environment = Math.max(0, Math.min(1, volume));
+    this.environmentGain.gain.setValueAtTime(this.volumeConfig.environment, this.context.currentTime);
+  }
+
+  // ==================== 基础音效系统 ====================
 
   // 播放背景音乐
   playBGMusic() {
@@ -70,11 +381,26 @@ class NinjaAudioService {
     this.jutsuSounds.forEach(sound => {
       sound.muted = this.isMuted;
     });
+
+    if (this.isMuted) {
+      this.stopEnvironmentSound();
+    }
   }
 
   // 获取静音状态
   getMuted(): boolean {
     return this.isMuted;
+  }
+
+  // 设置主音量
+  setMasterVolume(volume: number) {
+    this.volumeConfig.master = Math.max(0, Math.min(1, volume));
+    this.masterGain.gain.setValueAtTime(this.volumeConfig.master, this.context.currentTime);
+  }
+
+  // 获取音量配置
+  getVolumeConfig(): VolumeConfig {
+    return { ...this.volumeConfig };
   }
 
   // 播放手印音效（使用真实音频）
@@ -85,7 +411,7 @@ class NinjaAudioService {
     if (sound) {
       // 克隆音频以支持快速连续播放
       const audio = sound.cloneNode() as HTMLAudioElement;
-      audio.volume = 0.5;
+      audio.volume = this.volumeConfig.sfx;
       audio.play().catch(err => console.log('Seal sound play failed:', err));
     }
   }
@@ -312,7 +638,7 @@ class NinjaAudioService {
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(600, this.context.currentTime);
 
-    gainNode.gain.setValueAtTime(0.2, this.context.currentTime);
+    gainNode.gain.setValueAtTime(this.volumeConfig.ui, this.context.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.05);
 
     oscillator.connect(gainNode);
@@ -329,6 +655,13 @@ class NinjaAudioService {
     }
     // 开始播放背景音乐
     this.playBGMusic();
+  }
+
+  // 清理资源
+  dispose() {
+    this.stopEnvironmentSound();
+    this.stopBGMusic();
+    this.context.close();
   }
 }
 
