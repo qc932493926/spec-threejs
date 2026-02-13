@@ -140,18 +140,41 @@ function Starfield() {
   );
 }
 
-// 敌人组件 - 更炫酷的外观
+// 敌人类型配置
+const ENEMY_CONFIGS = {
+  basic: {
+    color: new THREE.Color(0xff3333),      // 红色
+    geometry: 'octahedron' as const,
+    size: 0.5,
+    emissiveIntensity: 0.5,
+    rotationSpeed: 2,
+  },
+  fast: {
+    color: new THREE.Color(0x00ffff),      // 青色
+    geometry: 'tetrahedron' as const,
+    size: 0.35,
+    emissiveIntensity: 0.8,
+    rotationSpeed: 4,
+  },
+  tank: {
+    color: new THREE.Color(0x33ff33),      // 绿色
+    geometry: 'box' as const,
+    size: 0.7,
+    emissiveIntensity: 0.3,
+    rotationSpeed: 1,
+  },
+};
+
+// 敌人组件 - 根据类型显示不同外观
 function EnemyMesh({ enemy }: { enemy: Enemy }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
 
-  // 获取敌人颜色
-  const enemyColor = useMemo(() => {
-    const baseColor = enemy.mesh.material instanceof THREE.MeshStandardMaterial
-      ? enemy.mesh.material.color
-      : new THREE.Color(0xff0000);
-    return baseColor;
-  }, [enemy.mesh.material]);
+  // 获取敌人类型配置
+  const config = useMemo(() => ENEMY_CONFIGS[enemy.type] || ENEMY_CONFIGS.basic, [enemy.type]);
+
+  // 血量比例（用于视觉反馈）
+  const healthPercent = enemy.health / enemy.maxHealth;
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -171,12 +194,13 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
       enemy.velocity.y *= -1;
     }
 
-    // 旋转
-    meshRef.current.rotation.y += delta * 2;
-    meshRef.current.rotation.x += delta * 0.5;
+    // 旋转 - 根据类型不同速度
+    meshRef.current.rotation.y += delta * config.rotationSpeed;
+    meshRef.current.rotation.x += delta * config.rotationSpeed * 0.25;
 
-    // 脉冲效果
-    const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+    // 脉冲效果 - 血量越低脉冲越快
+    const pulseSpeed = 0.005 + (1 - healthPercent) * 0.01;
+    const pulse = 1 + Math.sin(Date.now() * pulseSpeed) * 0.15;
     meshRef.current.scale.setScalar(pulse);
   });
 
@@ -192,29 +216,53 @@ function EnemyMesh({ enemy }: { enemy: Enemy }) {
     };
   }, [enemy.mesh]);
 
+  // 渲染不同几何体
+  const renderGeometry = () => {
+    switch (config.geometry) {
+      case 'tetrahedron':
+        return <tetrahedronGeometry args={[config.size, 0]} />;
+      case 'box':
+        return <boxGeometry args={[config.size * 1.5, config.size * 1.5, config.size * 1.5]} />;
+      case 'octahedron':
+      default:
+        return <octahedronGeometry args={[config.size, 0]} />;
+    }
+  };
+
+  // 血量颜色混合（满血原色，低血偏暗）
+  const displayColor = useMemo(() => {
+    return config.color.clone().lerp(new THREE.Color(0x333333), (1 - healthPercent) * 0.5);
+  }, [config.color, healthPercent]);
+
   return (
     <group>
-      {/* 主几何体 - 八面体更有动感 */}
+      {/* 主几何体 */}
       <mesh ref={meshRef} position={enemy.position.toArray() as [number, number, number]}>
-        <octahedronGeometry args={[0.5, 0]} />
+        {renderGeometry()}
         <meshStandardMaterial
-          color={enemyColor}
-          emissive={enemyColor}
-          emissiveIntensity={0.5}
+          color={displayColor}
+          emissive={config.color}
+          emissiveIntensity={config.emissiveIntensity * healthPercent}
           metalness={0.8}
           roughness={0.2}
         />
       </mesh>
       {/* 外层光晕 */}
       <mesh ref={glowRef} position={enemy.position.toArray() as [number, number, number]}>
-        <octahedronGeometry args={[0.7, 0]} />
+        {renderGeometry()}
         <meshBasicMaterial
-          color={enemyColor}
+          color={config.color}
           transparent
-          opacity={0.2}
+          opacity={0.2 * healthPercent}
           side={THREE.BackSide}
         />
       </mesh>
+      {/* 血量指示器 */}
+      {healthPercent < 1 && (
+        <sprite position={[enemy.position.x, enemy.position.y + 1, enemy.position.z]} scale={[1, 0.1, 1]}>
+          <spriteMaterial color={healthPercent > 0.5 ? 0x00ff00 : healthPercent > 0.25 ? 0xffff00 : 0xff0000} />
+        </sprite>
+      )}
     </group>
   );
 }
@@ -445,7 +493,7 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
     // 生成敌人
     enemySpawnTimerRef.current += delta;
     if (enemySpawnTimerRef.current > spawnInterval && gameState.enemies.length < maxEnemies) {
-      const newEnemy = createEnemy(enemyHealth, enemySpeed);
+      const newEnemy = createEnemy(enemyHealth, enemySpeed, wave);
       onGameStateUpdate({ enemies: [...gameState.enemies, newEnemy] });
       enemySpawnTimerRef.current = 0;
     }
@@ -467,13 +515,21 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
           // 播放音效
           audioService.playHitSound(gameState.combo);
 
-          // 增加Combo和分数 - 波次加成
+          // 增加Combo和分数 - 波次加成和连击奖励
           const waveBonus = 1 + gameState.wave * 0.1; // 波次加成
-          const comboMultiplier = gameState.combo + 1;
+          const newCombo = gameState.combo + 1;
+          const comboMultiplier = newCombo;
+
+          // 连击里程碑奖励
+          let comboBonus = 0;
+          if (newCombo === 10) comboBonus = 500;      // 10连击奖励
+          else if (newCombo === 25) comboBonus = 1500; // 25连击奖励
+          else if (newCombo === 50) comboBonus = 5000; // 50连击奖励
+
           const baseScore = 100;
-          updatedState.combo = gameState.combo + 1;
+          updatedState.combo = newCombo;
           updatedState.comboTimer = 3;
-          updatedState.score = Math.floor(gameState.score + baseScore * comboMultiplier * waveBonus);
+          updatedState.score = Math.floor(gameState.score + baseScore * comboMultiplier * waveBonus + comboBonus);
 
           // 敌人死亡
           if (enemy.health <= 0) {
@@ -556,8 +612,8 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
   );
 }
 
-// 创建敌人函数
-function createEnemy(health: number = 100, speed: number = 2): Enemy {
+// 创建敌人函数 - 支持不同类型
+function createEnemy(health: number = 100, speed: number = 2, wave: number = 1): Enemy {
   const angle = Math.random() * Math.PI * 2;
   const radius = 15;
   const position = new THREE.Vector3(
@@ -566,12 +622,56 @@ function createEnemy(health: number = 100, speed: number = 2): Enemy {
     -5
   );
 
+  // 根据波次决定敌人类型
+  let type: 'basic' | 'fast' | 'tank' = 'basic';
+  const typeRoll = Math.random();
+
+  if (wave >= 5) {
+    // 波次5以上：可能出现所有类型
+    if (typeRoll < 0.2) {
+      type = 'fast';
+    } else if (typeRoll < 0.35) {
+      type = 'tank';
+    }
+  } else if (wave >= 3) {
+    // 波次3-4：可能出现快速敌人
+    if (typeRoll < 0.15) {
+      type = 'fast';
+    }
+  }
+
+  // 根据类型调整属性
+  let actualHealth = health;
+  let actualSpeed = speed;
+  const config = ENEMY_CONFIGS[type];
+
+  if (type === 'fast') {
+    actualHealth = health * 0.5;    // 血量减半
+    actualSpeed = speed * 1.8;       // 速度+80%
+  } else if (type === 'tank') {
+    actualHealth = health * 2.5;     // 血量x2.5
+    actualSpeed = speed * 0.6;       // 速度-40%
+  }
+
   const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(Math.random(), Math.random(), Math.random()),
-    emissive: new THREE.Color(0.2, 0.2, 0.2)
+    color: config.color,
+    emissive: config.color.clone().multiplyScalar(0.3)
   });
 
-  const geometry = new THREE.CylinderGeometry(0.3, 0.3, 1, 16);
+  let geometry: THREE.BufferGeometry;
+  switch (config.geometry) {
+    case 'tetrahedron':
+      geometry = new THREE.TetrahedronGeometry(config.size, 0);
+      break;
+    case 'box':
+      geometry = new THREE.BoxGeometry(config.size * 1.5, config.size * 1.5, config.size * 1.5);
+      break;
+    case 'octahedron':
+    default:
+      geometry = new THREE.OctahedronGeometry(config.size, 0);
+      break;
+  }
+
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.copy(position);
 
@@ -579,14 +679,14 @@ function createEnemy(health: number = 100, speed: number = 2): Enemy {
     id: `enemy_${Date.now()}_${Math.random()}`,
     position: position.clone(),
     velocity: new THREE.Vector3(
-      (Math.random() - 0.5) * speed,
-      (Math.random() - 0.5) * speed,
+      (Math.random() - 0.5) * actualSpeed,
+      (Math.random() - 0.5) * actualSpeed,
       0
     ),
-    health,
-    maxHealth: health,
+    health: actualHealth,
+    maxHealth: actualHealth,
     mesh,
-    type: 'basic'
+    type
   };
 }
 
