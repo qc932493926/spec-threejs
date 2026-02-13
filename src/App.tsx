@@ -25,6 +25,12 @@ function App() {
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    volume: 70,
+    difficulty: 'normal' as 'easy' | 'normal' | 'hard',
+    quality: 'high' as 'low' | 'medium' | 'high',
+  });
   const [prevWave, setPrevWave] = useState(1);
   const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
@@ -284,6 +290,13 @@ function App() {
             title={isPaused ? "继续游戏" : "暂停游戏"}
           >
             <span className="text-xl">{isPaused ? "▶️" : "⏸️"}</span>
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title="游戏设置"
+          >
+            <span className="text-xl">⚙️</span>
           </button>
         </div>
 
@@ -589,6 +602,114 @@ function App() {
             >
               🔄 再战一次
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 设置面板 */}
+      {showSettings && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-blue-500/50 w-[500px] max-w-[90vw]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-blue-400">⚙️ 游戏设置</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 音量设置 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">
+                🔊 音量: {settings.volume}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={settings.volume}
+                onChange={(e) => setSettings({ ...settings, volume: parseInt(e.target.value) })}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            {/* 难度设置 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">🎯 难度选择</label>
+              <div className="flex gap-3">
+                {(['easy', 'normal', 'hard'] as const).map((diff) => (
+                  <button
+                    key={diff}
+                    onClick={() => setSettings({ ...settings, difficulty: diff })}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+                      settings.difficulty === diff
+                        ? diff === 'easy' ? 'bg-green-500 text-white' :
+                          diff === 'normal' ? 'bg-yellow-500 text-black' :
+                          'bg-red-500 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {diff === 'easy' ? '🌱 简单' :
+                     diff === 'normal' ? '⚔️ 普通' : '💀 困难'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                {settings.difficulty === 'easy' ? '敌人较弱，适合新手练习' :
+                 settings.difficulty === 'normal' ? '标准难度，体验完整游戏' :
+                 '敌人强劲，挑战极限'}
+              </p>
+            </div>
+
+            {/* 画面质量 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">🖼️ 画面质量</label>
+              <div className="flex gap-3">
+                {(['low', 'medium', 'high'] as const).map((qual) => (
+                  <button
+                    key={qual}
+                    onClick={() => setSettings({ ...settings, quality: qual })}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+                      settings.quality === qual
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {qual === 'low' ? '📉 低' :
+                     qual === 'medium' ? '📊 中' : '📈 高'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                {settings.quality === 'low' ? '低画质，提升性能' :
+                 settings.quality === 'medium' ? '平衡画质与性能' :
+                 '高画质，最佳视觉体验'}
+              </p>
+            </div>
+
+            {/* 保存按钮 */}
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => {
+                  setShowSettings(false);
+                  audioService.playUIClick();
+                }}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white py-3 rounded-lg font-bold transition-all transform hover:scale-105"
+              >
+                ✓ 保存设置
+              </button>
+              <button
+                onClick={() => {
+                  setSettings({ volume: 70, difficulty: 'normal', quality: 'high' });
+                  audioService.playUIClick();
+                }}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-bold transition-all"
+              >
+                ↺ 恢复默认
+              </button>
+            </div>
           </div>
         </div>
       )}
