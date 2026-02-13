@@ -467,13 +467,21 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
           // 播放音效
           audioService.playHitSound(gameState.combo);
 
-          // 增加Combo和分数 - 波次加成
+          // 增加Combo和分数 - 波次加成和连击奖励
           const waveBonus = 1 + gameState.wave * 0.1; // 波次加成
-          const comboMultiplier = gameState.combo + 1;
+          const newCombo = gameState.combo + 1;
+          const comboMultiplier = newCombo;
+
+          // 连击里程碑奖励
+          let comboBonus = 0;
+          if (newCombo === 10) comboBonus = 500;      // 10连击奖励
+          else if (newCombo === 25) comboBonus = 1500; // 25连击奖励
+          else if (newCombo === 50) comboBonus = 5000; // 50连击奖励
+
           const baseScore = 100;
-          updatedState.combo = gameState.combo + 1;
+          updatedState.combo = newCombo;
           updatedState.comboTimer = 3;
-          updatedState.score = Math.floor(gameState.score + baseScore * comboMultiplier * waveBonus);
+          updatedState.score = Math.floor(gameState.score + baseScore * comboMultiplier * waveBonus + comboBonus);
 
           // 敌人死亡
           if (enemy.health <= 0) {
