@@ -20,14 +20,14 @@ describe('JutsuSystem - 忍术系统', () => {
     test('单一雷印匹配雷遁', () => {
       const jutsu = matchJutsu(['雷印']);
       expect(jutsu).toBeDefined();
-      expect(jutsu?.name).toBe('雷遁·雷切');
+      expect(jutsu?.name).toBe('雷遁·千鸟');
       expect(jutsu?.damage).toBe(50);
     });
 
-    test('组合印记匹配火雷爆发', () => {
+    test('组合印记匹配火雷组合', () => {
       const jutsu = matchJutsu(['火印', '雷印']);
       expect(jutsu).toBeDefined();
-      expect(jutsu?.name).toBe('火雷爆发');
+      expect(jutsu?.name).toBe('火遁·龙火之术');
       expect(jutsu?.damage).toBe(80);
       expect(jutsu?.effectType).toBe('area');
     });

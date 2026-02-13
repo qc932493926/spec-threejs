@@ -26,11 +26,11 @@ class NinjaAudioService {
 
     // 忍术音效
     const jutsuFiles: Record<SealType, string> = {
-      fire: '/audio/火遁.wav',
-      water: '/audio/水遁.wav',
-      thunder: '/audio/雷遁.wav',
-      wind: '/audio/风遁.wav',
-      earth: '/audio/土遁.wav'
+      '火印': '/audio/火遁.wav',
+      '水印': '/audio/水遁.wav',
+      '雷印': '/audio/雷遁.wav',
+      '风印': '/audio/风遁.wav',
+      '土印': '/audio/土遁.wav'
     };
 
     // 预加载所有忍术音效

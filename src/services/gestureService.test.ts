@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { detectNinjaSeal, getSealType, type NormalizedLandmark } from './gestureService';
+import { detectNinjaSeal, getSealType } from './gestureService';
+import type { NormalizedLandmark } from '../types/index.ts';
 
 describe('GestureService - detectNinjaSeal', () => {
   test('识别张开手掌为Open_Palm', () => {
@@ -21,7 +22,7 @@ describe('GestureService - detectNinjaSeal', () => {
     // Mock landmarks for closed fist (fingers close to palm)
     const landmarks: NormalizedLandmark[] = [
       { x: 0.5, y: 0.5, z: 0 },    // palm center
-      ...Array.from({ length: 20 }, (_, i) => ({
+      ...Array.from({ length: 20 }, () => ({
         x: 0.5 + 0.02,  // fingers close to palm
         y: 0.5 + 0.02,
         z: 0

@@ -110,6 +110,7 @@ export const sealEmojis: Record<SealType, string> = {
 
 // 预定义忍术
 export const jutsuList: Jutsu[] = [
+  // 基础忍术
   {
     id: 'fireball',
     name: '火遁·豪火球之术',
@@ -132,7 +133,7 @@ export const jutsuList: Jutsu[] = [
   },
   {
     id: 'lightning',
-    name: '雷遁·雷切',
+    name: '雷遁·千鸟',
     seals: ['雷印'],
     chakraCost: 30,
     cooldown: 2000,
@@ -142,7 +143,7 @@ export const jutsuList: Jutsu[] = [
   },
   {
     id: 'wind_blade',
-    name: '风遁·风切',
+    name: '风遁·螺旋手里剑',
     seals: ['风印'],
     chakraCost: 15,
     cooldown: 800,
@@ -160,14 +161,45 @@ export const jutsuList: Jutsu[] = [
     effectType: 'shield',
     color: new THREE.Color(0x8b4513)
   },
+  // 组合忍术
   {
     id: 'fire_thunder_combo',
-    name: '火雷爆发',
+    name: '火遁·龙火之术',
     seals: ['火印', '雷印'],
     chakraCost: 50,
     cooldown: 3000,
     damage: 80,
     effectType: 'area',
     color: new THREE.Color(0xff6600)
+  },
+  {
+    id: 'water_wind_combo',
+    name: '水遁·暴风水龙弹',
+    seals: ['水印', '风印'],
+    chakraCost: 45,
+    cooldown: 2500,
+    damage: 70,
+    effectType: 'projectile',
+    color: new THREE.Color(0x4169e1)
+  },
+  {
+    id: 'earth_fire_combo',
+    name: '火遁·炎弹',
+    seals: ['土印', '火印'],
+    chakraCost: 55,
+    cooldown: 3500,
+    damage: 90,
+    effectType: 'area',
+    color: new THREE.Color(0xff8c00)
+  },
+  {
+    id: 'thunder_water_combo',
+    name: '雷遁·雷水龙弹',
+    seals: ['雷印', '水印'],
+    chakraCost: 60,
+    cooldown: 4000,
+    damage: 100,
+    effectType: 'projectile',
+    color: new THREE.Color(0x7b68ee)
   }
 ];

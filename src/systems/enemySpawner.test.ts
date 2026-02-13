@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { EnemySpawner, createEnemy, getWaveConfig, type WaveConfig } from './enemySpawner';
+import { EnemySpawner, createEnemy, getWaveConfig } from './enemySpawner';
 import * as THREE from 'three';
 
 describe('EnemySpawner - 弹幕式敌人生成器', () => {
