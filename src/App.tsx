@@ -36,6 +36,8 @@ function App() {
   const [achievementNotification, setAchievementNotification] = useState<Achievement | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const [lastScore, setLastScore] = useState(0);
   const [lastCombo, setLastCombo] = useState(0);
@@ -492,19 +494,30 @@ function App() {
       </div>
 
       {/* 开始界面 */}
-      {!isReady && (
+      {!isReady && !showTutorial && (
         <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
           <div className="text-center text-white max-w-5xl px-8">
             <h1 className="text-7xl font-bold mb-6 title-shine">火影结印游戏</h1>
             <p className="text-2xl mb-4 text-gray-300">Naruto Seal Game</p>
             <p className="text-3xl mb-12 text-orange-300">使用手势施放忍术，消灭敌人!</p>
 
-            <button
-              onClick={handleStart}
-              className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold mb-12 transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
-            >
-              🎮 开始游戏
-            </button>
+            <div className="flex gap-4 justify-center mb-12">
+              <button
+                onClick={handleStart}
+                className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
+              >
+                🎮 开始游戏
+              </button>
+              <button
+                onClick={() => {
+                  setShowTutorial(true);
+                  setTutorialStep(0);
+                }}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-2xl px-12 py-6 rounded-xl font-bold transition-all transform hover:scale-105 border-2 border-blue-400"
+              >
+                📖 新手教程
+              </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-12 text-left">
               {/* 手势说明 */}
@@ -864,6 +877,177 @@ function App() {
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-bold transition-all"
               >
                 ↺ 恢复默认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 教程面板 */}
+      {showTutorial && !isReady && (
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
+          <div className="text-white glass-panel p-8 border-2 border-cyan-500/50 w-[700px] max-w-[95vw]">
+            {/* 进度条 */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-cyan-400">📖 新手教程</h2>
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4].map((step) => (
+                  <div
+                    key={step}
+                    className={`w-3 h-3 rounded-full transition-all ${
+                      step === tutorialStep ? 'bg-cyan-400 scale-125' :
+                      step < tutorialStep ? 'bg-cyan-400/50' : 'bg-gray-600'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 教程内容 */}
+            <div className="min-h-[300px]">
+              {tutorialStep === 0 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">👋</div>
+                  <h3 className="text-2xl font-bold text-cyan-300 mb-4">欢迎来到火影结印游戏！</h3>
+                  <p className="text-gray-300 text-lg mb-4">
+                    这是一个使用手势控制的动作游戏。你需要通过摄像头做出不同的手势来释放忍术，消灭敌人！
+                  </p>
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 mt-4">
+                    <p className="text-cyan-300">💡 确保你的摄像头已经开启，并且光线充足</p>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 1 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">✋</div>
+                  <h3 className="text-2xl font-bold text-orange-300 mb-4">手势基础</h3>
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    <div className="glass-panel p-4 border border-orange-500/30">
+                      <span className="text-3xl">✋</span> 张开手掌 → 火印 🔥
+                    </div>
+                    <div className="glass-panel p-4 border border-blue-500/30">
+                      <span className="text-3xl">✊</span> 握拳 → 水印 💧
+                    </div>
+                    <div className="glass-panel p-4 border border-cyan-500/30">
+                      <span className="text-3xl">☝️</span> 食指向上 → 雷印 ⚡
+                    </div>
+                    <div className="glass-panel p-4 border border-green-500/30">
+                      <span className="text-3xl">👍</span> 拇指向上 → 风印 💨
+                    </div>
+                    <div className="glass-panel p-4 border border-amber-500/30 col-span-2 text-center">
+                      <span className="text-3xl">✌️</span> V字手势 → 土印 🗿
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 2 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🔮</div>
+                  <h3 className="text-2xl font-bold text-purple-300 mb-4">释放忍术</h3>
+                  <p className="text-gray-300 text-lg mb-4">
+                    做出手势后，系统会识别并记录你的手印。当手印组合匹配某个忍术时，忍术会自动释放！
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <div className="glass-panel p-3 border border-red-500/30">
+                      🔥 单独火印 → 火遁·豪火球 (伤害: 30)
+                    </div>
+                    <div className="glass-panel p-3 border border-blue-500/30">
+                      💧 单独水印 → 水遁·水龙弹 (伤害: 35)
+                    </div>
+                    <div className="glass-panel p-3 border border-yellow-500/30">
+                      🔥+⚡ 组合 → 火遁·龙火 (伤害: 80!)
+                    </div>
+                    <div className="glass-panel p-3 border border-purple-500/30">
+                      更多组合等你探索！
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 3 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">⚔️</div>
+                  <h3 className="text-2xl font-bold text-red-300 mb-4">战斗技巧</h3>
+                  <div className="space-y-4 text-left">
+                    <div className="glass-panel p-4 border border-red-500/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">💙</span>
+                        <div>
+                          <div className="font-bold">查克拉管理</div>
+                          <div className="text-sm text-gray-400">每个忍术消耗查克拉，会自动恢复</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="glass-panel p-4 border border-yellow-500/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🔥</span>
+                        <div>
+                          <div className="font-bold">连击加成</div>
+                          <div className="text-sm text-gray-400">连续击杀获得更高分数！10/25/50连击有额外奖励</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="glass-panel p-4 border border-purple-500/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">👾</span>
+                        <div>
+                          <div className="font-bold">敌人类型</div>
+                          <div className="text-sm text-gray-400">红色基础、青色快速、绿色坦克 - 不同策略应对</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 4 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🎮</div>
+                  <h3 className="text-2xl font-bold text-green-300 mb-4">准备好了吗？</h3>
+                  <p className="text-gray-300 text-lg mb-6">
+                    你已经学会了基础操作！现在开始你的忍者之旅吧！
+                  </p>
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-6">
+                    <p className="text-green-300 text-lg">🏆 完成成就可以解锁特殊称号！</p>
+                    <p className="text-green-300 text-lg">📊 挑战排行榜，成为最强忍者！</p>
+                  </div>
+                  <button
+                    onClick={handleStart}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-2xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+                  >
+                    🚀 开始游戏！
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 导航按钮 */}
+            <div className="flex justify-between mt-8">
+              <button
+                onClick={() => setTutorialStep(Math.max(0, tutorialStep - 1))}
+                className={`px-6 py-2 rounded-lg font-bold transition-all ${
+                  tutorialStep === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' :
+                  'bg-gray-600 hover:bg-gray-500 text-white'
+                }`}
+                disabled={tutorialStep === 0}
+              >
+                ← 上一步
+              </button>
+              {tutorialStep < 4 && (
+                <button
+                  onClick={() => setTutorialStep(tutorialStep + 1)}
+                  className="px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-bold transition-all"
+                >
+                  下一步 →
+                </button>
+              )}
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg font-bold transition-all"
+              >
+                跳过教程
               </button>
             </div>
           </div>
