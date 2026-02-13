@@ -5,6 +5,7 @@ import type { GameState } from './types/index.ts';
 import { sealEmojis } from './types/index.ts';
 import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
+import { achievementService, type Achievement } from './services/achievementService';
 import './index.css';
 
 function App() {
@@ -31,6 +32,8 @@ function App() {
     difficulty: 'normal' as 'easy' | 'normal' | 'hard',
     quality: 'high' as 'low' | 'medium' | 'high',
   });
+  const [achievementNotification, setAchievementNotification] = useState<Achievement | null>(null);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [prevWave, setPrevWave] = useState(1);
   const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
@@ -193,6 +196,11 @@ function App() {
   };
 
   const handleReset = () => {
+    // 在重置前更新成就统计
+    achievementService.updateStats({
+      gamesPlayed: 1,
+    });
+
     setGameState({
       chakra: 100,
       maxChakra: 100,
@@ -216,7 +224,11 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isReady && !gameState.isGameOver) {
+        if (showSettings) {
+          setShowSettings(false);
+        } else if (showAchievements) {
+          setShowAchievements(false);
+        } else if (isReady && !gameState.isGameOver) {
           setIsPaused(!isPaused);
         }
       }
@@ -237,7 +249,18 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isReady, isPaused, gameState.isGameOver]);
+  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements]);
+
+  // 成就解锁回调
+  useEffect(() => {
+    const handleAchievementUnlock = (achievement: Achievement) => {
+      setAchievementNotification(achievement);
+      audioService.playComboMilestone(50);  // 使用里程碑音效
+      setTimeout(() => setAchievementNotification(null), 3000);
+    };
+
+    achievementService.onUnlock(handleAchievementUnlock);
+  }, []);
 
   // 检测波次变化并显示公告
   useEffect(() => {
@@ -297,6 +320,13 @@ function App() {
             title="游戏设置"
           >
             <span className="text-xl">⚙️</span>
+          </button>
+          <button
+            onClick={() => setShowAchievements(true)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title="成就"
+          >
+            <span className="text-xl">🏆</span>
           </button>
         </div>
 
@@ -709,6 +739,79 @@ function App() {
               >
                 ↺ 恢复默认
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 成就通知 */}
+      {achievementNotification && (
+        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 z-40 pointer-events-none">
+          <div className="glass-panel px-8 py-4 border-2 border-yellow-500 animate-bounce">
+            <div className="text-center">
+              <div className="text-4xl mb-2">{achievementNotification.icon}</div>
+              <div className="text-yellow-400 text-2xl font-bold">成就解锁!</div>
+              <div className="text-white text-lg">{achievementNotification.name}</div>
+              <div className="text-gray-400 text-sm">{achievementNotification.description}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 成就面板 */}
+      {showAchievements && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30 overflow-auto py-8">
+          <div className="text-white glass-panel p-8 border-2 border-yellow-500/50 w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-yellow-400">🏆 成就</h2>
+              <button
+                onClick={() => setShowAchievements(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 进度 */}
+            <div className="mb-6 text-center">
+              <div className="text-lg">
+                已解锁: {achievementService.getProgress().unlocked} / {achievementService.getProgress().total}
+              </div>
+              <div className="w-full h-3 bg-gray-700 rounded-full mt-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 transition-all"
+                  style={{ width: `${(achievementService.getProgress().unlocked / achievementService.getProgress().total) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 成就列表 */}
+            <div className="grid grid-cols-1 gap-3">
+              {achievementService.getAllAchievements().map((achievement) => (
+                <div
+                  key={achievement.id}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    achievement.unlocked
+                      ? 'bg-yellow-500/20 border-yellow-500'
+                      : 'bg-gray-800/50 border-gray-600 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className={`text-3xl ${achievement.unlocked ? '' : 'grayscale'}`}>
+                      {achievement.icon}
+                    </span>
+                    <div className="flex-1">
+                      <div className={`font-bold ${achievement.unlocked ? 'text-yellow-400' : 'text-gray-400'}`}>
+                        {achievement.name}
+                      </div>
+                      <div className="text-sm text-gray-400">{achievement.description}</div>
+                    </div>
+                    {achievement.unlocked && (
+                      <span className="text-green-400 text-xl">✓</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
