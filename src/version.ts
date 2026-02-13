@@ -1,9 +1,10 @@
 // 游戏版本信息
 export const // 游戏版本信息
-export const VERSION = '1.76.0';
-export const VERSION_NAME = '挑战极限';
+export const VERSION = '1.77.0';
+export const VERSION_NAME = '平衡之道';
 
 export const VERSION_HISTORY = [
+  { version: '1.77.0', name: '平衡之道', date: '2025-02', changes: ['全面平衡性调整', '伤害计算公式', '护甲减伤系统', '难度修正系统', '道具掉落率调整'] },
   { version: '1.76.0', name: '挑战极限', date: '2025-02', changes: ['挑战模式系统', '7种挑战类型', '18个挑战任务', '难度分级系统', '挑战奖励'] },
   { version: '1.75.0', name: '忍具大师', date: '2025-02', changes: ['道具系统', '装备系统', '5个装备槽位', '套装加成', '消耗品和卷轴'] },
   { version: '1.74.0', name: 'Boss降临', date: '2025-02', changes: ['Boss系统', '6种Boss类型', 'Boss特殊技能', '护甲和护盾机制'] },
@@ -25,10 +26,11 @@ export const GAME_INFO = {
   author: 'Claude AI',
   repository: 'https://github.com/user/naruto-seals-game',
 };;
-export const VERSION_NAME = '进阶修炼';
+export const VERSION_NAME = 'UI动画优化';
 
 export const VERSION_HISTORY = [
-  { version: '1.76.0', name: '进阶修炼', date: '2025-02', changes: ['高级教程系统', '10个高级关卡', '3个难度等级', '教程奖励系统', '进度保存'] },
+  { version: '1.77.0', name: 'UI动画优化', date: '2025-02', changes: ['主菜单入场动画', '粒子背景效果', '悬浮脉冲效果', '卡片动画', '手势图标旋转入场', '技能图标弹跳'] },
+  { version: '1.76.0', name: '挑战极限', date: '2025-02', changes: ['挑战模式系统', '7种挑战类型', '18个挑战任务', '难度分级系统', '挑战奖励'] },
   { version: '1.75.0', name: '忍具大师', date: '2025-02', changes: ['道具系统', '装备系统', '5个装备槽位', '套装加成', '消耗品和卷轴'] },
   { version: '1.74.0', name: 'Boss降临', date: '2025-02', changes: ['Boss系统', '6种Boss类型', 'Boss特殊技能', '护甲和护盾机制'] },
   { version: '1.73.0', name: '禁术传说', date: '2025-02', changes: ['四印禁术系统', 'mythic稀有度', '新增益类型', '范围伤害和连锁效果'] },
