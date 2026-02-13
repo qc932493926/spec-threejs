@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { FilesetResolver, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision';
 import { GameScene } from './components/GameScene';
+import { StartScreen } from './components/StartScreen';
 import type { GameState } from './types/index.ts';
 import { sealEmojis } from './types/index.ts';
 import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
 import { achievementService, type Achievement } from './services/achievementService';
 import { leaderboardService } from './services/leaderboardService';
-import { VERSION } from './version.ts';
 import './index.css';
 
 // 初始游戏状态常量，避免每次渲染创建新对象
@@ -49,7 +49,6 @@ function App() {
   const [lastScore, setLastScore] = useState(0);
   const [lastCombo, setLastCombo] = useState(0);
   const [lastWave, setLastWave] = useState(1);
-  const [prevWave, setPrevWave] = useState(1);
   const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
   const gestureCooldownRef = useRef<number>(0);
@@ -260,22 +259,21 @@ function App() {
     };
   }, [isReady]);
 
-  // 处理游戏结束状态保存
-  const handleGameOver = useCallback(() => {
-    if (!gameOverProcessedRef.current) {
-      gameOverProcessedRef.current = true;
+  // 处理游戏结束状态保存 - 直接在渲染时处理
+  if (gameState.isGameOver && !gameOverProcessedRef.current) {
+    gameOverProcessedRef.current = true;
+    // 使用setTimeout来延迟状态更新，避免渲染期间更新
+    setTimeout(() => {
       setLastScore(gameState.score);
       setLastCombo(gameState.combo);
       setLastWave(gameState.wave);
-
-      // 更新成就统计
       achievementService.updateStats({
         totalScore: gameState.score,
         maxCombo: gameState.combo,
         maxWave: gameState.wave,
       });
-    }
-  }, [gameState.score, gameState.combo, gameState.wave]);
+    }, 0);
+  }
 
   // 重置游戏时清理标记
   const handleResetWithClear = useCallback(() => {
@@ -286,13 +284,6 @@ function App() {
     setPlayerName('');
     setShowLeaderboard(false);
   }, []);
-
-  // 监听游戏结束
-  useEffect(() => {
-    if (gameState.isGameOver) {
-      handleGameOver();
-    }
-  }, [gameState.isGameOver, handleGameOver]);
 
   // 键盘快捷键
   useEffect(() => {
@@ -340,20 +331,16 @@ function App() {
   useEffect(() => {
     if (gameState.wave > prevWaveAnnounceRef.current && isReady) {
       prevWaveAnnounceRef.current = gameState.wave;
-      setPrevWave(gameState.wave);
 
-      // 使用requestAnimationFrame避免同步setState警告
-      let rafId: number;
-      let timer: ReturnType<typeof setTimeout>;
-
-      rafId = requestAnimationFrame(() => {
+      // 使用setTimeout来延迟设置，避免同步setState警告
+      const rafId: number = requestAnimationFrame(() => {
         setShowWaveAnnounce(true);
-        timer = setTimeout(() => setShowWaveAnnounce(false), 2000);
       });
+      const timer: ReturnType<typeof setTimeout> = setTimeout(() => setShowWaveAnnounce(false), 2000);
 
       return () => {
         cancelAnimationFrame(rafId);
-        if (timer) clearTimeout(timer);
+        clearTimeout(timer);
       };
     }
   }, [gameState.wave, isReady]);
@@ -551,114 +538,15 @@ function App() {
         </div>
       </div>
 
-      {/* 开始界面 */}
+      {/* 开始界面 - v61优化动画 */}
       {!isReady && !showTutorial && (
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
-          <div className="text-center text-white max-w-5xl px-8">
-            <h1 className="text-7xl font-bold mb-6 title-shine">火影结印游戏</h1>
-            <p className="text-2xl mb-4 text-gray-300">Naruto Seal Game</p>
-            <p className="text-3xl mb-12 text-orange-300">使用手势施放忍术，消灭敌人!</p>
-
-            <div className="flex gap-4 justify-center mb-12">
-              <button
-                onClick={handleStart}
-                className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
-              >
-                🎮 开始游戏
-              </button>
-              <button
-                onClick={() => {
-                  setShowTutorial(true);
-                  setTutorialStep(0);
-                }}
-                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-2xl px-12 py-6 rounded-xl font-bold transition-all transform hover:scale-105 border-2 border-blue-400"
-              >
-                📖 新手教程
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-12 text-left">
-              {/* 手势说明 */}
-              <div className="glass-panel p-8 border-2 border-blue-500/50 hover:border-blue-400 transition-colors">
-                <h2 className="text-3xl font-bold mb-6 text-blue-400 text-center">手势说明</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">✋</span>
-                    <span className="text-xl">张开手掌 = 火印 🔥</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">✊</span>
-                    <span className="text-xl">握拳 = 水印 💧</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">☝️</span>
-                    <span className="text-xl">食指向上 = 雷印 ⚡</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">👍</span>
-                    <span className="text-xl">拇指向上 = 风印 💨</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">✌️</span>
-                    <span className="text-xl">V字手势 = 土印 🗿</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 技能说明 */}
-              <div className="glass-panel p-8 border-2 border-purple-500/50 hover:border-purple-400 transition-colors">
-                <h2 className="text-3xl font-bold mb-6 text-purple-400 text-center">技能释放</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">🔥</span>
-                    <div>
-                      <span className="text-xl">火遁·豪火球之术</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 30</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">💧</span>
-                    <div>
-                      <span className="text-xl">水遁·水龙弹之术</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 35</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">⚡</span>
-                    <div>
-                      <span className="text-xl">雷遁·千鸟</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 50</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">💨</span>
-                    <div>
-                      <span className="text-xl">风遁·螺旋手里剑</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 25</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">🗿</span>
-                    <div>
-                      <span className="text-xl">土遁·土流壁</span>
-                      <span className="text-sm text-gray-400 ml-2">防御</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 text-yellow-400 text-xl glass-panel inline-block px-6 py-3">
-              <p>💡 提示: 组合不同手印可以释放更强大的忍术!</p>
-              <p className="text-orange-300 text-lg mt-1">🔥 + ⚡ = 火雷爆发 (伤害: 80)</p>
-            </div>
-
-            {/* 版本信息 */}
-            <div className="mt-6 text-gray-500 text-sm">
-              Version {VERSION} | Made with ❤️
-            </div>
-          </div>
-        </div>
+        <StartScreen
+          onStart={handleStart}
+          onShowTutorial={() => {
+            setShowTutorial(true);
+            setTutorialStep(0);
+          }}
+        />
       )}
 
       {/* 暂停界面 */}

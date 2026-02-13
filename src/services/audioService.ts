@@ -613,6 +613,313 @@ class NinjaAudioService {
     return this.battleIntensity;
   }
 
+  // ==================== 忍术释放环境响应 (v173) ====================
+
+  // 播放忍术释放时的环境共鸣音效
+  playJutsuEnvironmentResonance(sealType: SealType, power: number = 1) {
+    if (this.isMuted) return;
+
+    // 根据忍术类型触发不同的环境响应
+    switch (sealType) {
+      case '火印':
+        this.playFireResonance(power);
+        break;
+      case '水印':
+        this.playWaterResonance(power);
+        break;
+      case '雷印':
+        this.playThunderResonance(power);
+        break;
+      case '风印':
+        this.playWindResonance(power);
+        break;
+      case '土印':
+        this.playEarthResonance(power);
+        break;
+    }
+  }
+
+  // 火遁共鸣 - 火焰燃烧和热量扩散
+  private playFireResonance(power: number) {
+    // 火焰燃烧的噼啪声
+    for (let i = 0; i < 3; i++) {
+      const delay = i * 0.05;
+      const freq = 200 + Math.random() * 100;
+
+      const noise = this.createNoiseBuffer(0.1);
+      const source = this.context.createBufferSource();
+      source.buffer = noise;
+
+      const filter = this.context.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(freq, this.context.currentTime + delay);
+      filter.Q.setValueAtTime(5, this.context.currentTime + delay);
+
+      const gainNode = this.context.createGain();
+      gainNode.gain.setValueAtTime(0.15 * power, this.context.currentTime + delay);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + delay + 0.1);
+
+      source.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(this.masterGain);
+
+      source.start(this.context.currentTime + delay);
+    }
+
+    // 热量波动的低频
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(80, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(40, this.context.currentTime + 0.3);
+
+    gainNode.gain.setValueAtTime(0.1 * power, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.3);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.masterGain);
+
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.3);
+  }
+
+  // 水遁共鸣 - 水流和涟漪声
+  private playWaterResonance(power: number) {
+    // 水流声
+    const noise = this.createNoiseBuffer(0.3);
+    const source = this.context.createBufferSource();
+    source.buffer = noise;
+
+    const filter = this.context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800, this.context.currentTime);
+    filter.Q.setValueAtTime(2, this.context.currentTime);
+
+    const gainNode = this.context.createGain();
+    gainNode.gain.setValueAtTime(0.08 * power, this.context.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.15 * power, this.context.currentTime + 0.1);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.3);
+
+    source.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.masterGain);
+
+    source.start(this.context.currentTime);
+
+    // 涟漪音效
+    for (let i = 0; i < 4; i++) {
+      const oscillator = this.context.createOscillator();
+      const gain = this.context.createGain();
+
+      oscillator.type = 'sine';
+      const baseFreq = 300 + i * 100;
+      oscillator.frequency.setValueAtTime(baseFreq, this.context.currentTime + i * 0.05);
+      oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 0.8, this.context.currentTime + i * 0.05 + 0.2);
+
+      gain.gain.setValueAtTime(0.05 * power, this.context.currentTime + i * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + i * 0.05 + 0.2);
+
+      oscillator.connect(gain);
+      gain.connect(this.masterGain);
+
+      oscillator.start(this.context.currentTime + i * 0.05);
+      oscillator.stop(this.context.currentTime + i * 0.05 + 0.2);
+    }
+  }
+
+  // 雷遁共鸣 - 电弧和雷鸣
+  private playThunderResonance(power: number) {
+    // 电弧噼啪声
+    for (let i = 0; i < 5; i++) {
+      const delay = Math.random() * 0.15;
+      const freq = 1000 + Math.random() * 2000;
+
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(freq, this.context.currentTime + delay);
+
+      gainNode.gain.setValueAtTime(0.1 * power, this.context.currentTime + delay);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + delay + 0.03);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.masterGain);
+
+      oscillator.start(this.context.currentTime + delay);
+      oscillator.stop(this.context.currentTime + delay + 0.03);
+    }
+
+    // 低频雷鸣
+    const thunder = this.context.createOscillator();
+    const thunderGain = this.context.createGain();
+    const filter = this.context.createBiquadFilter();
+
+    thunder.type = 'sawtooth';
+    thunder.frequency.setValueAtTime(60, this.context.currentTime);
+    thunder.frequency.exponentialRampToValueAtTime(30, this.context.currentTime + 0.4);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(150, this.context.currentTime);
+
+    thunderGain.gain.setValueAtTime(0.15 * power, this.context.currentTime);
+    thunderGain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.4);
+
+    thunder.connect(filter);
+    filter.connect(thunderGain);
+    thunderGain.connect(this.masterGain);
+
+    thunder.start(this.context.currentTime);
+    thunder.stop(this.context.currentTime + 0.4);
+  }
+
+  // 风遁共鸣 - 呼啸和涡流
+  private playWindResonance(power: number) {
+    // 风声
+    const noise = this.createNoiseBuffer(0.5);
+    const source = this.context.createBufferSource();
+    source.buffer = noise;
+
+    const filter = this.context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(400, this.context.currentTime);
+    filter.frequency.linearRampToValueAtTime(1200, this.context.currentTime + 0.2);
+    filter.frequency.linearRampToValueAtTime(300, this.context.currentTime + 0.4);
+    filter.Q.setValueAtTime(3, this.context.currentTime);
+
+    const gainNode = this.context.createGain();
+    gainNode.gain.setValueAtTime(0, this.context.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.12 * power, this.context.currentTime + 0.1);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.5);
+
+    source.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.masterGain);
+
+    source.start(this.context.currentTime);
+
+    // 尖锐的呼啸
+    const whistle = this.context.createOscillator();
+    const whistleGain = this.context.createGain();
+
+    whistle.type = 'sine';
+    whistle.frequency.setValueAtTime(600, this.context.currentTime);
+    whistle.frequency.exponentialRampToValueAtTime(900, this.context.currentTime + 0.2);
+
+    whistleGain.gain.setValueAtTime(0.06 * power, this.context.currentTime);
+    whistleGain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.2);
+
+    whistle.connect(whistleGain);
+    whistleGain.connect(this.masterGain);
+
+    whistle.start(this.context.currentTime);
+    whistle.stop(this.context.currentTime + 0.2);
+  }
+
+  // 土遁共鸣 - 岩石崩裂和地震
+  private playEarthResonance(power: number) {
+    // 低沉的地震声
+    const rumble = this.context.createOscillator();
+    const rumbleGain = this.context.createGain();
+    const filter = this.context.createBiquadFilter();
+
+    rumble.type = 'triangle';
+    rumble.frequency.setValueAtTime(40, this.context.currentTime);
+    rumble.frequency.exponentialRampToValueAtTime(25, this.context.currentTime + 0.5);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(100, this.context.currentTime);
+
+    rumbleGain.gain.setValueAtTime(0.2 * power, this.context.currentTime);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.5);
+
+    rumble.connect(filter);
+    filter.connect(rumbleGain);
+    rumbleGain.connect(this.masterGain);
+
+    rumble.start(this.context.currentTime);
+    rumble.stop(this.context.currentTime + 0.5);
+
+    // 岩石碎裂声
+    for (let i = 0; i < 4; i++) {
+      const delay = 0.1 + i * 0.08;
+
+      const noise = this.createNoiseBuffer(0.05);
+      const source = this.context.createBufferSource();
+      source.buffer = noise;
+
+      const crackFilter = this.context.createBiquadFilter();
+      crackFilter.type = 'highpass';
+      crackFilter.frequency.setValueAtTime(500, this.context.currentTime + delay);
+
+      const crackGain = this.context.createGain();
+      crackGain.gain.setValueAtTime(0.1 * power, this.context.currentTime + delay);
+      crackGain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + delay + 0.05);
+
+      source.connect(crackFilter);
+      crackFilter.connect(crackGain);
+      crackGain.connect(this.masterGain);
+
+      source.start(this.context.currentTime + delay);
+    }
+  }
+
+  // 创建噪声缓冲区
+  private createNoiseBuffer(duration: number): AudioBuffer {
+    const sampleRate = this.context.sampleRate;
+    const length = sampleRate * duration;
+    const buffer = this.context.createBuffer(1, length, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    return buffer;
+  }
+
+  // 播放忍术冲击波音效
+  playShockwave(intensity: number = 1) {
+    if (this.isMuted) return;
+
+    // 冲击波的低频
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(100, this.context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(30, this.context.currentTime + 0.3);
+
+    gainNode.gain.setValueAtTime(0.3 * intensity, this.context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.3);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.masterGain);
+
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.3);
+
+    // 高频冲击
+    const noise = this.createNoiseBuffer(0.15);
+    const source = this.context.createBufferSource();
+    source.buffer = noise;
+
+    const filter = this.context.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(1000, this.context.currentTime);
+
+    const noiseGain = this.context.createGain();
+    noiseGain.gain.setValueAtTime(0.15 * intensity, this.context.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.15);
+
+    source.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.masterGain);
+
+    source.start(this.context.currentTime);
+  }
+
   // ==================== 基础音效系统 ====================
 
   // 播放背景音乐
