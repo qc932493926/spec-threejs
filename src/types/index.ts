@@ -39,14 +39,22 @@ export interface Jutsu {
   chakraCost: number;
   cooldown: number; // 冷却时间（毫秒）
   damage: number;
-  effectType: 'projectile' | 'area' | 'shield' | 'buff' | 'debuff' | 'ultimate';
+  effectType: 'projectile' | 'area' | 'shield' | 'buff' | 'debuff' | 'ultimate' | 'forbidden';
   color: THREE.Color;
-  // v51新增属性
-  rarity?: 'common' | 'rare' | 'epic' | 'legendary'; // 稀有度
-  bonusDamage?: number; // 对Boss额外伤害
-  buffType?: 'attack' | 'defense' | 'speed' | 'chakra' | 'combo'; // 增益类型
+  // 稀有度
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
+  // 对Boss额外伤害
+  bonusDamage?: number;
+  // 增益类型
+  buffType?: 'attack' | 'defense' | 'speed' | 'chakra' | 'combo' | 'critical' | 'lifesteal' | 'invincible';
   buffDuration?: number; // 增益持续时间（毫秒）
   buffValue?: number; // 增益数值（百分比）
+  // v173新增：特殊效果
+  aoeRadius?: number; // 范围伤害半径
+  chainCount?: number; // 连锁次数
+  healPercent?: number; // 生命偷取百分比
+  criticalChance?: number; // 暴击几率
+  criticalMultiplier?: number; // 暴击倍数
 }
 
 // 忍术实例
@@ -345,5 +353,146 @@ export const jutsuList: Jutsu[] = [
     color: new THREE.Color(0x00aaff),
     rarity: 'epic',
     bonusDamage: 60
+  },
+
+  // ========== v173新增：四印禁术 ==========
+  {
+    id: 'edo_tensei',
+    name: '秽土转生·解',
+    seals: ['土印', '火印', '水印', '雷印'],
+    chakraCost: 150,
+    cooldown: 30000,
+    damage: 500,
+    effectType: 'forbidden',
+    color: new THREE.Color(0x4a0080),
+    rarity: 'mythic',
+    bonusDamage: 300,
+    aoeRadius: 15
+  },
+  {
+    id: 'shinra_tensei',
+    name: '神罗天征',
+    seals: ['风印', '火印', '雷印', '土印'],
+    chakraCost: 120,
+    cooldown: 25000,
+    damage: 400,
+    effectType: 'forbidden',
+    color: new THREE.Color(0x000033),
+    rarity: 'mythic',
+    aoeRadius: 20,
+    bonusDamage: 200
+  },
+  {
+    id: 'chibaku_tensei',
+    name: '地爆天星',
+    seals: ['土印', '土印', '雷印', '火印'],
+    chakraCost: 180,
+    cooldown: 40000,
+    damage: 600,
+    effectType: 'forbidden',
+    color: new THREE.Color(0x1a1a2e),
+    rarity: 'mythic',
+    aoeRadius: 25,
+    bonusDamage: 400
+  },
+  {
+    id: 'tsukuyomi',
+    name: '月读',
+    seals: ['火印', '雷印', '水印', '土印'],
+    chakraCost: 130,
+    cooldown: 35000,
+    damage: 0,
+    effectType: 'debuff',
+    color: new THREE.Color(0x6600cc),
+    rarity: 'mythic',
+    buffType: 'invincible',
+    buffDuration: 5000,
+    buffValue: 100
+  },
+
+  // ========== v173新增：进阶三印忍术 ==========
+  {
+    id: 'water_shark_dance',
+    name: '水遁·水鲛弹之舞',
+    seals: ['水印', '水印', '雷印'],
+    chakraCost: 70,
+    cooldown: 7000,
+    damage: 150,
+    effectType: 'area',
+    color: new THREE.Color(0x0077be),
+    rarity: 'legendary',
+    aoeRadius: 8,
+    chainCount: 3
+  },
+  {
+    id: 'fire_dragon_flame',
+    name: '火遁·龙炎啸',
+    seals: ['火印', '风印', '火印'],
+    chakraCost: 75,
+    cooldown: 7500,
+    damage: 160,
+    effectType: 'projectile',
+    color: new THREE.Color(0xff3300),
+    rarity: 'legendary',
+    bonusDamage: 100,
+    criticalChance: 30
+  },
+  {
+    id: 'lightning_armor',
+    name: '雷遁·雷遁铠甲',
+    seals: ['雷印', '雷印', '土印'],
+    chakraCost: 65,
+    cooldown: 20000,
+    damage: 0,
+    effectType: 'buff',
+    color: new THREE.Color(0x00ccff),
+    rarity: 'legendary',
+    buffType: 'invincible',
+    buffDuration: 8000,
+    buffValue: 80
+  },
+
+  // ========== v173新增：增益型忍术扩展 ==========
+  {
+    id: 'healing_palm',
+    name: '掌仙术·活',
+    seals: ['水印', '火印'],
+    chakraCost: 40,
+    cooldown: 20000,
+    damage: 0,
+    effectType: 'buff',
+    color: new THREE.Color(0x00ff99),
+    rarity: 'rare',
+    buffType: 'lifesteal',
+    buffDuration: 15000,
+    buffValue: 25 // 生命偷取25%
+  },
+  {
+    id: 'critical_focus',
+    name: '写轮眼·洞察',
+    seals: ['雷印', '火印'],
+    chakraCost: 35,
+    cooldown: 25000,
+    damage: 0,
+    effectType: 'buff',
+    color: new THREE.Color(0xff0000),
+    rarity: 'epic',
+    buffType: 'critical',
+    buffDuration: 12000,
+    buffValue: 50 // 暴击率+50%
+  },
+  {
+    id: 'combo_master',
+    name: '连击精通',
+    seals: ['风印', '雷印', '风印'],
+    chakraCost: 50,
+    cooldown: 30000,
+    damage: 0,
+    effectType: 'buff',
+    color: new THREE.Color(0xffcc00),
+    rarity: 'epic',
+    buffType: 'combo',
+    buffDuration: 20000,
+    buffValue: 100 // 连击加成+100%
   }
-];;
+];
