@@ -148,6 +148,7 @@ const ENEMY_CONFIGS = {
     size: 0.5,
     emissiveIntensity: 0.5,
     rotationSpeed: 2,
+    hitRadius: 0.6,                        // 碰撞半径
   },
   fast: {
     color: new THREE.Color(0x00ffff),      // 青色
@@ -155,6 +156,7 @@ const ENEMY_CONFIGS = {
     size: 0.35,
     emissiveIntensity: 0.8,
     rotationSpeed: 4,
+    hitRadius: 0.4,                        // 小碰撞体积
   },
   tank: {
     color: new THREE.Color(0x33ff33),      // 绿色
@@ -162,6 +164,7 @@ const ENEMY_CONFIGS = {
     size: 0.7,
     emissiveIntensity: 0.3,
     rotationSpeed: 1,
+    hitRadius: 1.0,                        // 大碰撞体积
   },
 };
 
@@ -498,19 +501,43 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
       enemySpawnTimerRef.current = 0;
     }
 
-    // 碰撞检测
+    // 碰撞检测 - 优化精度和范围伤害支持
     const updatedState: Partial<GameState> = {};
     let enemiesChanged = false;
+    const hitEnemies = new Set<string>();  // 防止同一敌人被多次判定
 
     gameState.jutsuInstances.forEach(jutsu => {
       if (!jutsu.active) return;
 
+      // 获取忍术碰撞参数
+      const isAreaEffect = jutsu.jutsu.effectType === 'area';
+      const jutsuHitRadius = isAreaEffect ? 3 : 0.8;  // 范围伤害半径更大
+      let hasHit = false;
+
       gameState.enemies.forEach(enemy => {
+        if (hitEnemies.has(enemy.id)) return;  // 跳过已判定敌人
+
+        // 根据敌人类型获取碰撞半径
+        const enemyConfig = ENEMY_CONFIGS[enemy.type] || ENEMY_CONFIGS.basic;
+        const combinedRadius = jutsuHitRadius + enemyConfig.hitRadius;
+
         const distance = jutsu.position.distanceTo(enemy.position);
-        if (distance < 1) {
+        if (distance < combinedRadius) {
+          // 计算伤害（范围伤害中心伤害高，边缘伤害低）
+          let damage = jutsu.jutsu.damage;
+          if (isAreaEffect) {
+            const distanceRatio = distance / combinedRadius;
+            damage = Math.floor(damage * (1 - distanceRatio * 0.5));  // 边缘伤害衰减50%
+          }
+
           // 命中
-          enemy.health -= jutsu.jutsu.damage;
-          jutsu.active = false;
+          enemy.health -= damage;
+          hasHit = true;
+
+          // 对于非范围伤害，命中后忍术消失
+          if (!isAreaEffect) {
+            jutsu.active = false;
+          }
 
           // 播放音效
           audioService.playHitSound(gameState.combo);
@@ -526,13 +553,19 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
           else if (newCombo === 25) comboBonus = 1500; // 25连击奖励
           else if (newCombo === 50) comboBonus = 5000; // 50连击奖励
 
+          // 类型击杀额外奖励
+          let typeBonus = 0;
+          if (enemy.type === 'fast') typeBonus = 50;   // 快速敌人额外奖励
+          else if (enemy.type === 'tank') typeBonus = 150;  // 坦克敌人额外奖励
+
           const baseScore = 100;
           updatedState.combo = newCombo;
           updatedState.comboTimer = 3;
-          updatedState.score = Math.floor(gameState.score + baseScore * comboMultiplier * waveBonus + comboBonus);
+          updatedState.score = Math.floor(gameState.score + (baseScore + typeBonus) * comboMultiplier * waveBonus + comboBonus);
 
           // 敌人死亡
           if (enemy.health <= 0) {
+            hitEnemies.add(enemy.id);
             audioService.playExplosion();
 
             // 创建爆炸
@@ -547,6 +580,14 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
           }
         }
       });
+
+      // 范围伤害忍术持续一段时间后消失
+      if (isAreaEffect && hasHit) {
+        jutsu.lifetime -= 0.5;  // 每次命中减少寿命
+        if (jutsu.lifetime <= 0) {
+          jutsu.active = false;
+        }
+      }
     });
 
     // 清理死亡敌人
