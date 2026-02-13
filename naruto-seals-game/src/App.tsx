@@ -5,6 +5,9 @@ import type { GameState } from './types/index.ts';
 import { sealEmojis } from './types/index.ts';
 import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
+import { achievementService, type Achievement } from './services/achievementService';
+import { leaderboardService } from './services/leaderboardService';
+import { VERSION } from './version.ts';
 import './index.css';
 
 function App() {
@@ -25,6 +28,21 @@ function App() {
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    volume: 70,
+    difficulty: 'normal' as 'easy' | 'normal' | 'hard',
+    quality: 'high' as 'low' | 'medium' | 'high',
+  });
+  const [achievementNotification, setAchievementNotification] = useState<Achievement | null>(null);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [playerName, setPlayerName] = useState('');
+  const [lastScore, setLastScore] = useState(0);
+  const [lastCombo, setLastCombo] = useState(0);
+  const [lastWave, setLastWave] = useState(1);
   const [prevWave, setPrevWave] = useState(1);
   const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
@@ -187,6 +205,11 @@ function App() {
   };
 
   const handleReset = () => {
+    // 在重置前更新成就统计
+    achievementService.updateStats({
+      gamesPlayed: 1,
+    });
+
     setGameState({
       chakra: 100,
       maxChakra: 100,
@@ -199,7 +222,25 @@ function App() {
       isGameOver: false,
       wave: 1
     });
+    setPlayerName('');
+    setShowLeaderboard(false);
   };
+
+  // 游戏结束时保存分数
+  useEffect(() => {
+    if (gameState.isGameOver && lastScore === 0) {
+      setLastScore(gameState.score);
+      setLastCombo(gameState.combo);
+      setLastWave(gameState.wave);
+
+      // 更新成就统计
+      achievementService.updateStats({
+        totalScore: gameState.score,
+        maxCombo: gameState.combo,
+        maxWave: gameState.wave,
+      });
+    }
+  }, [gameState.isGameOver, lastScore]);
 
   const handleToggleMute = () => {
     audioService.toggleMute();
@@ -210,7 +251,11 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isReady && !gameState.isGameOver) {
+        if (showSettings) {
+          setShowSettings(false);
+        } else if (showAchievements) {
+          setShowAchievements(false);
+        } else if (isReady && !gameState.isGameOver) {
           setIsPaused(!isPaused);
         }
       }
@@ -231,7 +276,18 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isReady, isPaused, gameState.isGameOver]);
+  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements]);
+
+  // 成就解锁回调
+  useEffect(() => {
+    const handleAchievementUnlock = (achievement: Achievement) => {
+      setAchievementNotification(achievement);
+      audioService.playComboMilestone(50);  // 使用里程碑音效
+      setTimeout(() => setAchievementNotification(null), 3000);
+    };
+
+    achievementService.onUnlock(handleAchievementUnlock);
+  }, []);
 
   // 检测波次变化并显示公告
   useEffect(() => {
@@ -284,6 +340,20 @@ function App() {
             title={isPaused ? "继续游戏" : "暂停游戏"}
           >
             <span className="text-xl">{isPaused ? "▶️" : "⏸️"}</span>
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title="游戏设置"
+          >
+            <span className="text-xl">⚙️</span>
+          </button>
+          <button
+            onClick={() => setShowAchievements(true)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title="成就"
+          >
+            <span className="text-xl">🏆</span>
           </button>
         </div>
 
@@ -425,19 +495,30 @@ function App() {
       </div>
 
       {/* 开始界面 */}
-      {!isReady && (
+      {!isReady && !showTutorial && (
         <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
           <div className="text-center text-white max-w-5xl px-8">
             <h1 className="text-7xl font-bold mb-6 title-shine">火影结印游戏</h1>
             <p className="text-2xl mb-4 text-gray-300">Naruto Seal Game</p>
             <p className="text-3xl mb-12 text-orange-300">使用手势施放忍术，消灭敌人!</p>
 
-            <button
-              onClick={handleStart}
-              className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold mb-12 transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
-            >
-              🎮 开始游戏
-            </button>
+            <div className="flex gap-4 justify-center mb-12">
+              <button
+                onClick={handleStart}
+                className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
+              >
+                🎮 开始游戏
+              </button>
+              <button
+                onClick={() => {
+                  setShowTutorial(true);
+                  setTutorialStep(0);
+                }}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-2xl px-12 py-6 rounded-xl font-bold transition-all transform hover:scale-105 border-2 border-blue-400"
+              >
+                📖 新手教程
+              </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-12 text-left">
               {/* 手势说明 */}
@@ -514,6 +595,11 @@ function App() {
               <p>💡 提示: 组合不同手印可以释放更强大的忍术!</p>
               <p className="text-orange-300 text-lg mt-1">🔥 + ⚡ = 火雷爆发 (伤害: 80)</p>
             </div>
+
+            {/* 版本信息 */}
+            <div className="mt-6 text-gray-500 text-sm">
+              Version {VERSION} | Made with ❤️
+            </div>
           </div>
         </div>
       )}
@@ -551,7 +637,7 @@ function App() {
       {/* 游戏结束界面 */}
       {gameState.isGameOver && (
         <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-gray-900/90 to-black/90 flex items-center justify-center z-20">
-          <div className="text-center text-white glass-panel p-12 border-2 border-red-500/50">
+          <div className="text-center text-white glass-panel p-12 border-2 border-red-500/50 max-w-[600px]">
             <h1 className="text-7xl font-bold mb-6 text-red-500" style={{ textShadow: '0 0 30px rgba(239, 68, 68, 0.8)' }}>
               任务失败
             </h1>
@@ -560,15 +646,15 @@ function App() {
             {/* 统计数据 */}
             <div className="grid grid-cols-3 gap-8 mb-8">
               <div className="glass-panel p-4 border border-orange-500/30">
-                <div className="text-5xl font-bold text-orange-400">{gameState.score}</div>
+                <div className="text-5xl font-bold text-orange-400">{lastScore || gameState.score}</div>
                 <div className="text-sm text-gray-400 mt-2">最终分数</div>
               </div>
               <div className="glass-panel p-4 border border-yellow-500/30">
-                <div className="text-5xl font-bold text-yellow-400">{gameState.combo}x</div>
+                <div className="text-5xl font-bold text-yellow-400">{lastCombo || gameState.combo}x</div>
                 <div className="text-sm text-gray-400 mt-2">最高连击</div>
               </div>
               <div className="glass-panel p-4 border border-purple-500/30">
-                <div className="text-5xl font-bold text-purple-400">{gameState.wave}</div>
+                <div className="text-5xl font-bold text-purple-400">{lastWave || gameState.wave}</div>
                 <div className="text-sm text-gray-400 mt-2">到达波次</div>
               </div>
             </div>
@@ -576,19 +662,473 @@ function App() {
             {/* 评价 */}
             <div className="mb-8 p-4 rounded-lg bg-gradient-to-r from-orange-500/20 via-red-500/20 to-orange-500/20 border border-orange-500/30">
               <p className="text-xl">
-                {gameState.score >= 5000 ? '🌟 传说中的忍者！' :
-                 gameState.score >= 2000 ? '⭐ 精英上忍！' :
-                 gameState.score >= 1000 ? '✨ 中忍水平' :
-                 gameState.score >= 500 ? '📝 下忍入门' : '💪 继续努力！'}
+                {(lastScore || gameState.score) >= 5000 ? '🌟 传说中的忍者！' :
+                 (lastScore || gameState.score) >= 2000 ? '⭐ 精英上忍！' :
+                 (lastScore || gameState.score) >= 1000 ? '✨ 中忍水平' :
+                 (lastScore || gameState.score) >= 500 ? '📝 下忍入门' : '💪 继续努力！'}
               </p>
             </div>
 
+            {/* 排行榜输入 */}
+            {leaderboardService.isNewRecord(lastScore || gameState.score) && (lastScore || gameState.score) > 0 && !showLeaderboard && (
+              <div className="mb-6">
+                <p className="text-yellow-400 text-lg mb-2">🎉 新纪录！请输入你的名字</p>
+                <div className="flex gap-2 justify-center">
+                  <input
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value.slice(0, 10))}
+                    placeholder="忍者名字"
+                    className="px-4 py-2 bg-gray-800 border-2 border-orange-500 rounded-lg text-white text-center focus:outline-none focus:border-yellow-400"
+                    maxLength={10}
+                  />
+                  <button
+                    onClick={() => {
+                      const name = playerName.trim() || '匿名忍者';
+                      leaderboardService.addEntry({
+                        name,
+                        score: lastScore || gameState.score,
+                        wave: lastWave || gameState.wave,
+                        combo: lastCombo || gameState.combo,
+                      });
+                      setShowLeaderboard(true);
+                      audioService.playUIClick();
+                    }}
+                    className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-bold hover:from-yellow-600 hover:to-orange-600 transition-all"
+                  >
+                    提交
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 按钮组 */}
+            <div className="flex gap-4 justify-center flex-wrap">
+              <button
+                onClick={handleReset}
+                className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105 btn-glow border-2 border-orange-400"
+              >
+                🔄 再战一次
+              </button>
+              <button
+                onClick={() => setShowLeaderboard(true)}
+                className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white text-xl px-8 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                🏆 排行榜
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 排行榜面板 */}
+      {showLeaderboard && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-yellow-500/50 w-[500px] max-w-[90vw]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-yellow-400">🏆 排行榜</h2>
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {leaderboardService.getLeaderboard().length === 0 ? (
+              <p className="text-center text-gray-400 py-8">暂无记录，快来挑战吧！</p>
+            ) : (
+              <div className="space-y-2">
+                {leaderboardService.getLeaderboard().map((entry, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-center gap-4 p-3 rounded-lg ${
+                      index === 0 ? 'bg-yellow-500/20 border border-yellow-500' :
+                      index === 1 ? 'bg-gray-400/20 border border-gray-400' :
+                      index === 2 ? 'bg-orange-700/20 border border-orange-700' :
+                      'bg-gray-800/50'
+                    }`}
+                  >
+                    <span className={`text-2xl w-10 text-center font-bold ${
+                      index === 0 ? 'text-yellow-400' :
+                      index === 1 ? 'text-gray-300' :
+                      index === 2 ? 'text-orange-600' :
+                      'text-gray-500'
+                    }`}>
+                      {index < 3 ? ['🥇', '🥈', '🥉'][index] : `${index + 1}.`}
+                    </span>
+                    <div className="flex-1">
+                      <div className="font-bold">{entry.name}</div>
+                      <div className="text-sm text-gray-400">
+                        波次 {entry.wave} | 连击 {entry.combo}x | {entry.date}
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-orange-400">
+                      {entry.score}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
-              onClick={handleReset}
-              className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-2xl px-16 py-5 rounded-xl font-bold transition-all transform hover:scale-105 btn-glow border-2 border-orange-400"
+              onClick={() => setShowLeaderboard(false)}
+              className="w-full mt-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white rounded-lg font-bold transition-all"
             >
-              🔄 再战一次
+              关闭
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 设置面板 */}
+      {showSettings && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-blue-500/50 w-[500px] max-w-[90vw]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-blue-400">⚙️ 游戏设置</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 音量设置 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">
+                🔊 音量: {settings.volume}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={settings.volume}
+                onChange={(e) => setSettings({ ...settings, volume: parseInt(e.target.value) })}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            {/* 难度设置 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">🎯 难度选择</label>
+              <div className="flex gap-3">
+                {(['easy', 'normal', 'hard'] as const).map((diff) => (
+                  <button
+                    key={diff}
+                    onClick={() => setSettings({ ...settings, difficulty: diff })}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+                      settings.difficulty === diff
+                        ? diff === 'easy' ? 'bg-green-500 text-white' :
+                          diff === 'normal' ? 'bg-yellow-500 text-black' :
+                          'bg-red-500 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {diff === 'easy' ? '🌱 简单' :
+                     diff === 'normal' ? '⚔️ 普通' : '💀 困难'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                {settings.difficulty === 'easy' ? '敌人较弱，适合新手练习' :
+                 settings.difficulty === 'normal' ? '标准难度，体验完整游戏' :
+                 '敌人强劲，挑战极限'}
+              </p>
+            </div>
+
+            {/* 画面质量 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">🖼️ 画面质量</label>
+              <div className="flex gap-3">
+                {(['low', 'medium', 'high'] as const).map((qual) => (
+                  <button
+                    key={qual}
+                    onClick={() => setSettings({ ...settings, quality: qual })}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+                      settings.quality === qual
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {qual === 'low' ? '📉 低' :
+                     qual === 'medium' ? '📊 中' : '📈 高'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                {settings.quality === 'low' ? '低画质，提升性能' :
+                 settings.quality === 'medium' ? '平衡画质与性能' :
+                 '高画质，最佳视觉体验'}
+              </p>
+            </div>
+
+            {/* 保存按钮 */}
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => {
+                  setShowSettings(false);
+                  audioService.playUIClick();
+                }}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white py-3 rounded-lg font-bold transition-all transform hover:scale-105"
+              >
+                ✓ 保存设置
+              </button>
+              <button
+                onClick={() => {
+                  setSettings({ volume: 70, difficulty: 'normal', quality: 'high' });
+                  audioService.playUIClick();
+                }}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-bold transition-all"
+              >
+                ↺ 恢复默认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 教程面板 */}
+      {showTutorial && !isReady && (
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
+          <div className="text-white glass-panel p-8 border-2 border-cyan-500/50 w-[700px] max-w-[95vw]">
+            {/* 进度条 */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-cyan-400">📖 新手教程</h2>
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4].map((step) => (
+                  <div
+                    key={step}
+                    className={`w-3 h-3 rounded-full transition-all ${
+                      step === tutorialStep ? 'bg-cyan-400 scale-125' :
+                      step < tutorialStep ? 'bg-cyan-400/50' : 'bg-gray-600'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 教程内容 */}
+            <div className="min-h-[300px]">
+              {tutorialStep === 0 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">👋</div>
+                  <h3 className="text-2xl font-bold text-cyan-300 mb-4">欢迎来到火影结印游戏！</h3>
+                  <p className="text-gray-300 text-lg mb-4">
+                    这是一个使用手势控制的动作游戏。你需要通过摄像头做出不同的手势来释放忍术，消灭敌人！
+                  </p>
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 mt-4">
+                    <p className="text-cyan-300">💡 确保你的摄像头已经开启，并且光线充足</p>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 1 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">✋</div>
+                  <h3 className="text-2xl font-bold text-orange-300 mb-4">手势基础</h3>
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    <div className="glass-panel p-4 border border-orange-500/30">
+                      <span className="text-3xl">✋</span> 张开手掌 → 火印 🔥
+                    </div>
+                    <div className="glass-panel p-4 border border-blue-500/30">
+                      <span className="text-3xl">✊</span> 握拳 → 水印 💧
+                    </div>
+                    <div className="glass-panel p-4 border border-cyan-500/30">
+                      <span className="text-3xl">☝️</span> 食指向上 → 雷印 ⚡
+                    </div>
+                    <div className="glass-panel p-4 border border-green-500/30">
+                      <span className="text-3xl">👍</span> 拇指向上 → 风印 💨
+                    </div>
+                    <div className="glass-panel p-4 border border-amber-500/30 col-span-2 text-center">
+                      <span className="text-3xl">✌️</span> V字手势 → 土印 🗿
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 2 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🔮</div>
+                  <h3 className="text-2xl font-bold text-purple-300 mb-4">释放忍术</h3>
+                  <p className="text-gray-300 text-lg mb-4">
+                    做出手势后，系统会识别并记录你的手印。当手印组合匹配某个忍术时，忍术会自动释放！
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-left">
+                    <div className="glass-panel p-3 border border-red-500/30">
+                      🔥 单独火印 → 火遁·豪火球 (伤害: 30)
+                    </div>
+                    <div className="glass-panel p-3 border border-blue-500/30">
+                      💧 单独水印 → 水遁·水龙弹 (伤害: 35)
+                    </div>
+                    <div className="glass-panel p-3 border border-yellow-500/30">
+                      🔥+⚡ 组合 → 火遁·龙火 (伤害: 80!)
+                    </div>
+                    <div className="glass-panel p-3 border border-purple-500/30">
+                      更多组合等你探索！
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 3 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">⚔️</div>
+                  <h3 className="text-2xl font-bold text-red-300 mb-4">战斗技巧</h3>
+                  <div className="space-y-4 text-left">
+                    <div className="glass-panel p-4 border border-red-500/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">💙</span>
+                        <div>
+                          <div className="font-bold">查克拉管理</div>
+                          <div className="text-sm text-gray-400">每个忍术消耗查克拉，会自动恢复</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="glass-panel p-4 border border-yellow-500/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🔥</span>
+                        <div>
+                          <div className="font-bold">连击加成</div>
+                          <div className="text-sm text-gray-400">连续击杀获得更高分数！10/25/50连击有额外奖励</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="glass-panel p-4 border border-purple-500/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">👾</span>
+                        <div>
+                          <div className="font-bold">敌人类型</div>
+                          <div className="text-sm text-gray-400">红色基础、青色快速、绿色坦克 - 不同策略应对</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tutorialStep === 4 && (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🎮</div>
+                  <h3 className="text-2xl font-bold text-green-300 mb-4">准备好了吗？</h3>
+                  <p className="text-gray-300 text-lg mb-6">
+                    你已经学会了基础操作！现在开始你的忍者之旅吧！
+                  </p>
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-6">
+                    <p className="text-green-300 text-lg">🏆 完成成就可以解锁特殊称号！</p>
+                    <p className="text-green-300 text-lg">📊 挑战排行榜，成为最强忍者！</p>
+                  </div>
+                  <button
+                    onClick={handleStart}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-2xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+                  >
+                    🚀 开始游戏！
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 导航按钮 */}
+            <div className="flex justify-between mt-8">
+              <button
+                onClick={() => setTutorialStep(Math.max(0, tutorialStep - 1))}
+                className={`px-6 py-2 rounded-lg font-bold transition-all ${
+                  tutorialStep === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' :
+                  'bg-gray-600 hover:bg-gray-500 text-white'
+                }`}
+                disabled={tutorialStep === 0}
+              >
+                ← 上一步
+              </button>
+              {tutorialStep < 4 && (
+                <button
+                  onClick={() => setTutorialStep(tutorialStep + 1)}
+                  className="px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-bold transition-all"
+                >
+                  下一步 →
+                </button>
+              )}
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg font-bold transition-all"
+              >
+                跳过教程
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 成就通知 */}
+      {achievementNotification && (
+        <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 z-40 pointer-events-none">
+          <div className="glass-panel px-8 py-4 border-2 border-yellow-500 animate-bounce">
+            <div className="text-center">
+              <div className="text-4xl mb-2">{achievementNotification.icon}</div>
+              <div className="text-yellow-400 text-2xl font-bold">成就解锁!</div>
+              <div className="text-white text-lg">{achievementNotification.name}</div>
+              <div className="text-gray-400 text-sm">{achievementNotification.description}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 成就面板 */}
+      {showAchievements && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30 overflow-auto py-8">
+          <div className="text-white glass-panel p-8 border-2 border-yellow-500/50 w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-yellow-400">🏆 成就</h2>
+              <button
+                onClick={() => setShowAchievements(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 进度 */}
+            <div className="mb-6 text-center">
+              <div className="text-lg">
+                已解锁: {achievementService.getProgress().unlocked} / {achievementService.getProgress().total}
+              </div>
+              <div className="w-full h-3 bg-gray-700 rounded-full mt-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 transition-all"
+                  style={{ width: `${(achievementService.getProgress().unlocked / achievementService.getProgress().total) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 成就列表 */}
+            <div className="grid grid-cols-1 gap-3">
+              {achievementService.getAllAchievements().map((achievement) => (
+                <div
+                  key={achievement.id}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    achievement.unlocked
+                      ? 'bg-yellow-500/20 border-yellow-500'
+                      : 'bg-gray-800/50 border-gray-600 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className={`text-3xl ${achievement.unlocked ? '' : 'grayscale'}`}>
+                      {achievement.icon}
+                    </span>
+                    <div className="flex-1">
+                      <div className={`font-bold ${achievement.unlocked ? 'text-yellow-400' : 'text-gray-400'}`}>
+                        {achievement.name}
+                      </div>
+                      <div className="text-sm text-gray-400">{achievement.description}</div>
+                    </div>
+                    {achievement.unlocked && (
+                      <span className="text-green-400 text-xl">✓</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
