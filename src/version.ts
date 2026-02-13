@@ -1,8 +1,9 @@
 // 游戏版本信息
-export const VERSION = '1.75.0';
-export const VERSION_NAME = '忍具大师';
+export const VERSION = '1.76.0';
+export const VERSION_NAME = '进阶修炼';
 
 export const VERSION_HISTORY = [
+  { version: '1.76.0', name: '进阶修炼', date: '2025-02', changes: ['高级教程系统', '10个高级关卡', '3个难度等级', '教程奖励系统', '进度保存'] },
   { version: '1.75.0', name: '忍具大师', date: '2025-02', changes: ['道具系统', '装备系统', '5个装备槽位', '套装加成', '消耗品和卷轴'] },
   { version: '1.74.0', name: 'Boss降临', date: '2025-02', changes: ['Boss系统', '6种Boss类型', 'Boss特殊技能', '护甲和护盾机制'] },
   { version: '1.73.0', name: '禁术传说', date: '2025-02', changes: ['四印禁术系统', 'mythic稀有度', '新增益类型', '范围伤害和连锁效果'] },

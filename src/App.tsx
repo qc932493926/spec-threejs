@@ -25,10 +25,14 @@ const INITIAL_GAME_STATE: GameState = {
 };
 
 // 默认设置常量
-const DEFAULT_SETTINGS = {
+const DEFAULT_SETTINGS: {
+  volume: number;
+  difficulty: 'easy' | 'normal' | 'hard';
+  quality: 'low' | 'medium' | 'high';
+} = {
   volume: 70,
-  difficulty: 'normal' as const,
-  quality: 'high' as const,
+  difficulty: 'normal',
+  quality: 'high',
 };
 
 function App() {

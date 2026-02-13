@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Enemy, GameState, Jutsu, JutsuInstance } from '../types/index.ts';
@@ -9,6 +9,58 @@ interface GameSceneProps {
   gameState: GameState;
   onGameStateUpdate: (state: Partial<GameState>) => void;
 }
+
+// ==================== v42: 几何体池 - 复用几何体避免重复创建 ====================
+class GeometryPool {
+  private static instance: GeometryPool;
+  private geometries: Map<string, THREE.BufferGeometry> = new Map();
+
+  static getInstance(): GeometryPool {
+    if (!GeometryPool.instance) {
+      GeometryPool.instance = new GeometryPool();
+    }
+    return GeometryPool.instance;
+  }
+
+  getOctahedron(size: number): THREE.OctahedronGeometry {
+    const key = `octahedron_${size}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.OctahedronGeometry(size, 0));
+    }
+    return this.geometries.get(key) as THREE.OctahedronGeometry;
+  }
+
+  getTetrahedron(size: number): THREE.TetrahedronGeometry {
+    const key = `tetrahedron_${size}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.TetrahedronGeometry(size, 0));
+    }
+    return this.geometries.get(key) as THREE.TetrahedronGeometry;
+  }
+
+  getBox(size: number): THREE.BoxGeometry {
+    const key = `box_${size}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.BoxGeometry(size, size, size));
+    }
+    return this.geometries.get(key) as THREE.BoxGeometry;
+  }
+
+  getSphere(radius: number, widthSegments: number = 32, heightSegments: number = 32): THREE.SphereGeometry {
+    const key = `sphere_${radius}_${widthSegments}_${heightSegments}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.SphereGeometry(radius, widthSegments, heightSegments));
+    }
+    return this.geometries.get(key) as THREE.SphereGeometry;
+  }
+
+  dispose(): void {
+    this.geometries.forEach(geo => geo.dispose());
+    this.geometries.clear();
+  }
+}
+
+const geometryPool = GeometryPool.getInstance();
 
 // 动态星空背景组件
 function Starfield() {

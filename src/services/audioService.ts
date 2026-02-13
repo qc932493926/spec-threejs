@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { SealType } from '../types/index.ts';
 
 // 环境音效类型
@@ -36,7 +37,14 @@ class NinjaAudioService {
   private battleGain: GainNode;
   private battleNodes: OscillatorNode[] = [];
   private battleInterval: ReturnType<typeof setInterval> | null = null;
-  private lastBattleUpdateTime: number = 0;
+  // 用于未来功能的变量
+  public readonly lastBattleUpdateTime: number = 0;
+
+  // v174: 天气音效系统
+  public readonly currentWeather: WeatherType = 'clear';
+  private weatherGain: GainNode;
+  public readonly weatherNodes: (OscillatorNode | AudioBufferSourceNode)[] = [];
+  public readonly weatherInterval: ReturnType<typeof setInterval> | null = null;
 
   // 音量配置
   private volumeConfig: VolumeConfig = {
@@ -62,6 +70,11 @@ class NinjaAudioService {
     this.battleGain = this.context.createGain();
     this.battleGain.gain.value = 0;
     this.battleGain.connect(this.masterGain);
+
+    // 天气音效增益节点
+    this.weatherGain = this.context.createGain();
+    this.weatherGain.gain.value = 0;
+    this.weatherGain.connect(this.masterGain);
 
     // 预加载音频文件
     this.preloadAudio();
