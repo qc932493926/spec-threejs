@@ -55,6 +55,8 @@ function App() {
   const gestureCooldownRef = useRef<number>(0);
   const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
   const animationFrameRef = useRef<number>(0);
+  const gameOverProcessedRef = useRef<boolean>(false);
+  const prevWaveAnnounceRef = useRef<number>(1);
 
   // 使用useCallback优化事件处理函数
   const handleGameStateUpdate = useCallback((updates: Partial<GameState>) => {
@@ -64,17 +66,6 @@ function App() {
   const handleStart = useCallback(() => {
     audioService.resume();
     setIsReady(true);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    // 在重置前更新成就统计
-    achievementService.updateStats({
-      gamesPlayed: 1,
-    });
-
-    setGameState(INITIAL_GAME_STATE);
-    setPlayerName('');
-    setShowLeaderboard(false);
   }, []);
 
   const handleToggleMute = useCallback(() => {
@@ -269,9 +260,10 @@ function App() {
     };
   }, [isReady]);
 
-  // 游戏结束时保存分数
-  useEffect(() => {
-    if (gameState.isGameOver && lastScore === 0) {
+  // 处理游戏结束状态保存
+  const handleGameOver = useCallback(() => {
+    if (!gameOverProcessedRef.current) {
+      gameOverProcessedRef.current = true;
       setLastScore(gameState.score);
       setLastCombo(gameState.combo);
       setLastWave(gameState.wave);
@@ -283,7 +275,24 @@ function App() {
         maxWave: gameState.wave,
       });
     }
-  }, [gameState.isGameOver, lastScore]);
+  }, [gameState.score, gameState.combo, gameState.wave]);
+
+  // 重置游戏时清理标记
+  const handleResetWithClear = useCallback(() => {
+    gameOverProcessedRef.current = false;
+    prevWaveAnnounceRef.current = 1;
+    achievementService.updateStats({ gamesPlayed: 1 });
+    setGameState(INITIAL_GAME_STATE);
+    setPlayerName('');
+    setShowLeaderboard(false);
+  }, []);
+
+  // 监听游戏结束
+  useEffect(() => {
+    if (gameState.isGameOver) {
+      handleGameOver();
+    }
+  }, [gameState.isGameOver, handleGameOver]);
 
   // 键盘快捷键
   useEffect(() => {
@@ -302,7 +311,7 @@ function App() {
       }
       if (e.key === 'r' || e.key === 'R') {
         if (gameState.isGameOver || isPaused) {
-          handleReset();
+          handleResetWithClear();
           setIsPaused(false);
           if (!isReady) setIsReady(true);
         }
@@ -314,7 +323,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements, handleToggleMute, handleReset, handleStart]);
+  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements, handleToggleMute, handleResetWithClear, handleStart]);
 
   // 成就解锁回调
   useEffect(() => {
@@ -329,13 +338,25 @@ function App() {
 
   // 检测波次变化并显示公告
   useEffect(() => {
-    if (gameState.wave > prevWave && isReady) {
-      setShowWaveAnnounce(true);
+    if (gameState.wave > prevWaveAnnounceRef.current && isReady) {
+      prevWaveAnnounceRef.current = gameState.wave;
       setPrevWave(gameState.wave);
-      const timer = setTimeout(() => setShowWaveAnnounce(false), 2000);
-      return () => clearTimeout(timer);
+
+      // 使用requestAnimationFrame避免同步setState警告
+      let rafId: number;
+      let timer: ReturnType<typeof setTimeout>;
+
+      rafId = requestAnimationFrame(() => {
+        setShowWaveAnnounce(true);
+        timer = setTimeout(() => setShowWaveAnnounce(false), 2000);
+      });
+
+      return () => {
+        cancelAnimationFrame(rafId);
+        if (timer) clearTimeout(timer);
+      };
     }
-  }, [gameState.wave, prevWave, isReady]);
+  }, [gameState.wave, isReady]);
 
   return (
     <div className="relative w-screen h-screen bg-gradient-to-b from-gray-900 to-black overflow-hidden">
@@ -658,7 +679,7 @@ function App() {
               <button
                 onClick={() => {
                   setIsPaused(false);
-                  handleReset();
+                  handleResetWithClear();
                   setIsReady(false);
                 }}
                 className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
@@ -738,7 +759,7 @@ function App() {
             {/* 按钮组 */}
             <div className="flex gap-4 justify-center flex-wrap">
               <button
-                onClick={handleReset}
+                onClick={handleResetWithClear}
                 className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105 btn-glow border-2 border-orange-400"
               >
                 🔄 再战一次

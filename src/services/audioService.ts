@@ -15,6 +15,9 @@ interface VolumeConfig {
   ui: number;
 }
 
+// 战斗紧张度等级
+export type BattleIntensity = 'calm' | 'low' | 'medium' | 'high' | 'critical';
+
 class NinjaAudioService {
   private context: AudioContext;
   private masterGain: GainNode;
@@ -27,6 +30,13 @@ class NinjaAudioService {
   private currentEnvironment: EnvironmentType = 'forest';
   private environmentNodes: OscillatorNode[] = [];
   private environmentInterval: ReturnType<typeof setInterval> | null = null;
+
+  // v172: 战场氛围系统
+  private battleIntensity: BattleIntensity = 'calm';
+  private battleGain: GainNode;
+  private battleNodes: OscillatorNode[] = [];
+  private battleInterval: ReturnType<typeof setInterval> | null = null;
+  private lastBattleUpdateTime: number = 0;
 
   // 音量配置
   private volumeConfig: VolumeConfig = {
@@ -47,6 +57,11 @@ class NinjaAudioService {
     this.environmentGain = this.context.createGain();
     this.environmentGain.gain.value = this.volumeConfig.environment;
     this.environmentGain.connect(this.masterGain);
+
+    // 战场氛围增益节点
+    this.battleGain = this.context.createGain();
+    this.battleGain.gain.value = 0;
+    this.battleGain.connect(this.masterGain);
 
     // 预加载音频文件
     this.preloadAudio();
@@ -355,6 +370,249 @@ class NinjaAudioService {
     this.environmentGain.gain.setValueAtTime(this.volumeConfig.environment, this.context.currentTime);
   }
 
+  // ==================== 战场氛围系统 (v172) ====================
+
+  // 更新战斗紧张度（根据敌人数量、波次、血量等动态调整）
+  updateBattleIntensity(enemyCount: number, wave: number, playerHealth: number) {
+    // 计算紧张度分数
+    let score = 0;
+
+    // 敌人数量影响
+    score += Math.min(enemyCount * 10, 30);
+
+    // 波次影响
+    score += Math.min(wave * 3, 30);
+
+    // 玩家血量影响（低血量增加紧张感）
+    if (playerHealth < 30) {
+      score += 40;
+    } else if (playerHealth < 60) {
+      score += 20;
+    }
+
+    // 确定紧张度等级
+    const newIntensity: BattleIntensity =
+      score >= 80 ? 'critical' :
+      score >= 60 ? 'high' :
+      score >= 40 ? 'medium' :
+      score >= 20 ? 'low' : 'calm';
+
+    // 只在紧张度变化时更新
+    if (newIntensity !== this.battleIntensity) {
+      this.setBattleIntensity(newIntensity);
+    }
+  }
+
+  // 设置战斗紧张度等级
+  setBattleIntensity(intensity: BattleIntensity) {
+    if (this.isMuted) return;
+
+    this.battleIntensity = intensity;
+    this.stopBattleAmbience();
+
+    // 根据紧张度设置不同的音效
+    switch (intensity) {
+      case 'calm':
+        // 平静 - 非常轻柔的背景
+        this.battleGain.gain.setValueAtTime(0, this.context.currentTime);
+        break;
+      case 'low':
+        // 低紧张度 - 轻微的心跳感
+        this.startLowTensionAmbience();
+        break;
+      case 'medium':
+        // 中等紧张度 - 加速的心跳和呼吸
+        this.startMediumTensionAmbience();
+        break;
+      case 'high':
+        // 高紧张度 - 快速心跳、警报感
+        this.startHighTensionAmbience();
+        break;
+      case 'critical':
+        // 危急 - 极度紧张的警报音
+        this.startCriticalTensionAmbience();
+        break;
+    }
+  }
+
+  // 低紧张度氛围
+  private startLowTensionAmbience() {
+    // 平滑过渡音量
+    this.battleGain.gain.linearRampToValueAtTime(0.1, this.context.currentTime + 0.5);
+
+    // 缓慢的心跳节奏 (每秒1次)
+    this.battleInterval = setInterval(() => {
+      if (this.isMuted) return;
+      this.playHeartbeat(0.08, 1);
+    }, 1000);
+  }
+
+  // 中等紧张度氛围
+  private startMediumTensionAmbience() {
+    this.battleGain.gain.linearRampToValueAtTime(0.15, this.context.currentTime + 0.5);
+
+    // 加速的心跳 (每0.7秒1次)
+    this.battleInterval = setInterval(() => {
+      if (this.isMuted) return;
+      this.playHeartbeat(0.12, 1.2);
+    }, 700);
+
+    // 添加低频紧张背景
+    this.createTensionDrone(50, 0.05);
+  }
+
+  // 高紧张度氛围
+  private startHighTensionAmbience() {
+    this.battleGain.gain.linearRampToValueAtTime(0.2, this.context.currentTime + 0.3);
+
+    // 快速心跳 (每0.5秒1次)
+    this.battleInterval = setInterval(() => {
+      if (this.isMuted) return;
+      this.playHeartbeat(0.15, 1.4);
+    }, 500);
+
+    // 紧张背景
+    this.createTensionDrone(60, 0.08);
+
+    // 偶尔的警报音
+    const alertInterval = setInterval(() => {
+      if (this.battleIntensity !== 'high' || this.isMuted) {
+        clearInterval(alertInterval);
+        return;
+      }
+      this.playAlertBeep(800, 0.05);
+    }, 3000);
+  }
+
+  // 危急紧张度氛围
+  private startCriticalTensionAmbience() {
+    this.battleGain.gain.linearRampToValueAtTime(0.25, this.context.currentTime + 0.2);
+
+    // 极速心跳 (每0.35秒1次)
+    this.battleInterval = setInterval(() => {
+      if (this.isMuted) return;
+      this.playHeartbeat(0.18, 1.6);
+    }, 350);
+
+    // 强烈紧张背景
+    this.createTensionDrone(70, 0.1);
+
+    // 频繁警报音
+    const alertInterval = setInterval(() => {
+      if (this.battleIntensity !== 'critical' || this.isMuted) {
+        clearInterval(alertInterval);
+        return;
+      }
+      this.playAlertBeep(1000, 0.08);
+    }, 1500);
+  }
+
+  // 播放心跳音效
+  private playHeartbeat(volume: number, intensity: number) {
+    // 心跳的双重音 (lub-dub)
+    const times = [0, 0.12];
+
+    times.forEach((delay, index) => {
+      const oscillator = this.context.createOscillator();
+      const gainNode = this.context.createGain();
+      const filter = this.context.createBiquadFilter();
+
+      oscillator.type = 'sine';
+      // lub (低音) 和 dub (稍高音)
+      oscillator.frequency.setValueAtTime(40 + index * 10, this.context.currentTime + delay);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(100, this.context.currentTime + delay);
+
+      const vol = volume * (index === 0 ? 1 : 0.6);
+      gainNode.gain.setValueAtTime(0, this.context.currentTime + delay);
+      gainNode.gain.linearRampToValueAtTime(vol * intensity, this.context.currentTime + delay + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + delay + 0.15);
+
+      oscillator.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(this.battleGain);
+
+      oscillator.start(this.context.currentTime + delay);
+      oscillator.stop(this.context.currentTime + delay + 0.15);
+    });
+  }
+
+  // 创建紧张背景音
+  private createTensionDrone(frequency: number, volume: number) {
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+    const filter = this.context.createBiquadFilter();
+
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+
+    // 频率调制制造紧张感
+    const lfo = this.context.createOscillator();
+    const lfoGain = this.context.createGain();
+    lfo.frequency.setValueAtTime(0.5, this.context.currentTime);
+    lfoGain.gain.setValueAtTime(frequency * 0.1, this.context.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscillator.frequency);
+    lfo.start();
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(frequency * 3, this.context.currentTime);
+
+    gainNode.gain.setValueAtTime(volume, this.context.currentTime);
+
+    oscillator.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.battleGain);
+
+    oscillator.start();
+    this.battleNodes.push(oscillator, lfo);
+  }
+
+  // 播放警报音
+  private playAlertBeep(frequency: number, volume: number) {
+    const oscillator = this.context.createOscillator();
+    const gainNode = this.context.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+
+    gainNode.gain.setValueAtTime(0, this.context.currentTime);
+    gainNode.gain.linearRampToValueAtTime(volume, this.context.currentTime + 0.05);
+    gainNode.gain.linearRampToValueAtTime(0, this.context.currentTime + 0.15);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.battleGain);
+
+    oscillator.start(this.context.currentTime);
+    oscillator.stop(this.context.currentTime + 0.15);
+  }
+
+  // 停止战场氛围
+  stopBattleAmbience() {
+    if (this.battleInterval) {
+      clearInterval(this.battleInterval);
+      this.battleInterval = null;
+    }
+
+    this.battleNodes.forEach(node => {
+      try {
+        node.stop();
+      } catch {
+        // 忽略已停止的节点
+      }
+    });
+    this.battleNodes = [];
+
+    // 平滑降低音量
+    this.battleGain.gain.linearRampToValueAtTime(0, this.context.currentTime + 0.3);
+  }
+
+  // 获取当前战斗紧张度
+  getBattleIntensity(): BattleIntensity {
+    return this.battleIntensity;
+  }
+
   // ==================== 基础音效系统 ====================
 
   // 播放背景音乐
@@ -660,6 +918,7 @@ class NinjaAudioService {
   // 清理资源
   dispose() {
     this.stopEnvironmentSound();
+    this.stopBattleAmbience();
     this.stopBGMusic();
     this.context.close();
   }

@@ -1,9 +1,9 @@
 // 游戏版本信息
 export const VERSION = '1.72.0';
-export const VERSION_NAME = '性能优化';
+export const VERSION_NAME = '战场氛围';
 
 export const VERSION_HISTORY = [
-  { version: '1.72.0', name: '性能优化', date: '2025-02', changes: ['React性能优化', 'useMemo/useCallback优化', '减少不必要的重渲染', '常量提取优化'] },
+  { version: '1.72.0', name: '战场氛围', date: '2025-02', changes: ['战场氛围音效增强', '动态紧张度音效', '战斗激烈度响应'] },
   { version: '1.71.0', name: '音效大师', date: '2025-02', changes: ['环境音效变体', '战场氛围系统', '音频性能优化'] },
   { version: '1.51.0', name: '忍术大师', date: '2025-02', changes: ['三印终极忍术', '辅助增益忍术', '防御穿透忍术', '忍术稀有度系统'] },
   { version: '1.40.0', name: '忍者之道', date: '2025-02', changes: ['完整游戏功能', '成就系统', '排行榜', '教程引导'] },

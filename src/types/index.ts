@@ -115,7 +115,7 @@ export const sealEmojis: Record<SealType, string> = {
 };
 
 // 预定义忍术
-export const export const jutsuList: Jutsu[] = [
+export const jutsuList: Jutsu[] = [
   // ========== 基础忍术 (单手印) ==========
   {
     id: 'fireball',
