@@ -566,7 +566,14 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
           // 敌人死亡
           if (enemy.health <= 0) {
             hitEnemies.add(enemy.id);
-            audioService.playExplosion();
+            // 根据敌人类型播放不同音效
+            audioService.playEnemyKill(enemy.type);
+
+            // 连击里程碑音效
+            const newCombo = updatedState.combo || gameState.combo;
+            if (newCombo === 10 || newCombo === 25 || newCombo === 50) {
+              audioService.playComboMilestone(newCombo);
+            }
 
             // 创建爆炸
             const material = enemy.mesh.material as THREE.MeshStandardMaterial;
@@ -601,6 +608,8 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
         const newWave = gameState.wave + Math.floor((gameState.score % 500) / 100);
         if (newWave > gameState.wave) {
           updatedState.wave = newWave;
+          // 播放波次提升音效
+          audioService.playWaveUp(newWave);
         }
       }
     }
