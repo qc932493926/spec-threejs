@@ -76,6 +76,7 @@ function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [showHelp, setShowHelp] = useState(false); // v188: 游戏内帮助
   const [playerName, setPlayerName] = useState('');
   const [lastScore, setLastScore] = useState(0);
   const [lastCombo, setLastCombo] = useState(0);
@@ -477,6 +478,13 @@ function App() {
             title="成就"
           >
             <span className="text-xl">🏆</span>
+          </button>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title="帮助"
+          >
+            <span className="text-xl">❓</span>
           </button>
         </div>
 
@@ -1346,6 +1354,88 @@ function App() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* v188: 帮助面板 */}
+      {showHelp && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-cyan-500/50 w-[600px] max-w-[90vw] max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-cyan-400">❓ 游戏帮助</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 手势说明 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-orange-400 mb-3">✋ 手势说明</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="glass-panel p-2 border border-orange-500/30 flex items-center gap-2">
+                  <span className="text-2xl">✋</span> <span>张开手掌 → 火印 🔥</span>
+                </div>
+                <div className="glass-panel p-2 border border-blue-500/30 flex items-center gap-2">
+                  <span className="text-2xl">✊</span> <span>握拳 → 水印 💧</span>
+                </div>
+                <div className="glass-panel p-2 border border-cyan-500/30 flex items-center gap-2">
+                  <span className="text-2xl">☝️</span> <span>食指向上 → 雷印 ⚡</span>
+                </div>
+                <div className="glass-panel p-2 border border-green-500/30 flex items-center gap-2">
+                  <span className="text-2xl">👍</span> <span>拇指向上 → 风印 💨</span>
+                </div>
+                <div className="glass-panel p-2 border border-amber-500/30 col-span-2 flex items-center gap-2">
+                  <span className="text-2xl">✌️</span> <span>V字手势 → 土印 🗿</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 忍术说明 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-purple-400 mb-3">🔮 忍术释放</h3>
+              <div className="space-y-2 text-sm">
+                <div className="glass-panel p-2 border border-red-500/30">🔥 单火印 → 火遁·豪火球 (伤害30)</div>
+                <div className="glass-panel p-2 border border-blue-500/30">💧 单水印 → 水遁·水龙弹 (伤害35)</div>
+                <div className="glass-panel p-2 border border-cyan-500/30">⚡ 单雷印 → 雷遁·千鸟 (伤害50)</div>
+                <div className="glass-panel p-2 border border-green-500/30">💨 单风印 → 风遁·风刃 (伤害25)</div>
+                <div className="glass-panel p-2 border border-yellow-500/30">🔥+⚡ → 火遁·龙火 (伤害80)</div>
+              </div>
+            </div>
+
+            {/* 快捷键说明 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-yellow-400 mb-3">⌨️ 快捷键</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="glass-panel p-2 border border-gray-500/30">1-5 快速释放忍术</div>
+                <div className="glass-panel p-2 border border-gray-500/30">ESC 暂停/继续</div>
+                <div className="glass-panel p-2 border border-gray-500/30">M 静音/开启</div>
+                <div className="glass-panel p-2 border border-gray-500/30">R 重新开始</div>
+                <div className="glass-panel p-2 border border-gray-500/30">S 打开设置</div>
+                <div className="glass-panel p-2 border border-gray-500/30">C 清除手印</div>
+              </div>
+            </div>
+
+            {/* 游戏技巧 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-green-400 mb-3">💡 游戏技巧</h3>
+              <div className="space-y-2 text-sm text-gray-300">
+                <div className="glass-panel p-2 border border-green-500/30">• 连击越高，分数加成越多</div>
+                <div className="glass-panel p-2 border border-green-500/30">• 10/25/50连击有额外奖励</div>
+                <div className="glass-panel p-2 border border-green-500/30">• 查克拉会自动恢复，合理分配</div>
+                <div className="glass-panel p-2 border border-green-500/30">• 可以在设置中调整游戏速度</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowHelp(false)}
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg font-bold transition-all"
+            >
+              知道了
+            </button>
           </div>
         </div>
       )}

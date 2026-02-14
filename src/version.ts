@@ -1,8 +1,10 @@
 // 游戏版本信息
-export const VERSION = '1.86.0';
-export const VERSION_NAME = '游戏速度';
+export const VERSION = '1.88.0';
+export const VERSION_NAME = '游戏帮助';
 
 export const VERSION_HISTORY = [
+  { version: '1.88.0', name: '游戏帮助', date: '2025-02', changes: ['游戏内帮助系统', '手势说明', '忍术释放指南', '快捷键列表', '游戏技巧提示'] },
+  { version: '1.87.0', name: '快捷键', date: '2025-02', changes: ['数字键1-5快速释放忍术', 'ESC暂停/M静音/R重置', 'S设置/C清除手印'] },
   { version: '1.86.0', name: '游戏速度', date: '2025-02', changes: ['游戏速度选项(0.5x/1x/1.5x/2x)', '设置面板速度选择', '敌人生成速度调整', '查克拉/COMBO计时器调整'] },
   { version: '1.85.0', name: '音量控制', date: '2025-02', changes: ['分类音量控制滑块', '主音量/BGM/音效/环境音独立调节', '设置面板音量增强', '暂停菜单快速音量调节'] },
   { version: '1.84.0', name: '统计面板', date: '2025-02', changes: ['游戏统计面板', '详细数据展示', '历史记录查询', '成就进度显示', '排名信息集成'] },
