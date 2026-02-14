@@ -1,17 +1,22 @@
 /**
- * v174: 存档系统服务
+ * v174-v179: 存档系统服务
  * 使用localStorage保存和加载游戏进度
+ * v179新增：多存档槽位、自动备份、完整性校验
  */
 
 // 存档数据接口
 export interface SaveData {
   version: string;
   timestamp: number;
+  slotId: number; // v179: 存档槽位ID
+  slotName: string; // v179: 存档名称
+  checksum: string; // v179: 数据校验和
   playerStats: PlayerStats;
   settings: GameSettings;
   achievements: UnlockedAchievement[];
   jutsuUpgrades: JutsuUpgradeState;
   tutorialProgress: TutorialProgress;
+  dailyChallenges: DailyChallengeState; // v183: 每日挑战状态
 }
 
 // 玩家统计数据
@@ -62,10 +67,20 @@ export interface TutorialProgress {
   advancedTutorialCompleted: boolean;
 }
 
+// v183: 每日挑战状态
+export interface DailyChallengeState {
+  lastRefreshDate: string;
+  completedChallenges: string[];
+  progress: Record<string, number>;
+}
+
 // 存档键名
 const SAVE_KEY = 'naruto_seals_save';
 const SETTINGS_KEY = 'naruto_seals_settings';
 const STATS_KEY = 'naruto_seals_stats';
+const SLOTS_KEY = 'naruto_seals_slots'; // v179: 多存档槽位
+const BACKUP_KEY = 'naruto_seals_backup'; // v179: 自动备份
+const MAX_SLOTS = 5; // v179: 最大存档槽位数
 
 // 默认玩家统计
 const DEFAULT_PLAYER_STATS: PlayerStats = {
@@ -101,12 +116,21 @@ const DEFAULT_TUTORIAL_PROGRESS: TutorialProgress = {
   advancedTutorialCompleted: false,
 };
 
+// v183: 默认每日挑战状态
+const DEFAULT_DAILY_CHALLENGE_STATE: DailyChallengeState = {
+  lastRefreshDate: '',
+  completedChallenges: [],
+  progress: {},
+};
+
 /**
  * 存档服务类
  */
 class SaveService {
   private currentSave: SaveData | null = null;
   private autoSaveInterval: ReturnType<typeof setInterval> | null = null;
+  private backupInterval: ReturnType<typeof setInterval> | null = null; // v179: 自动备份定时器
+  private currentSlotId: number = 0; // v179: 当前使用的存档槽位
 
   /**
    * 初始化存档系统
@@ -114,6 +138,242 @@ class SaveService {
   initialize(): void {
     this.loadSave();
     this.startAutoSave();
+    this.startAutoBackup(); // v179: 启动自动备份
+  }
+
+  // ==================== v179: 多存档槽位系统 ====================
+
+  /**
+   * 获取所有存档槽位
+   */
+  getAllSlots(): SaveData[] {
+    try {
+      const slotsData = localStorage.getItem(SLOTS_KEY);
+      if (slotsData) {
+        return JSON.parse(slotsData) as SaveData[];
+      }
+    } catch (error) {
+      console.error('Failed to load slots:', error);
+    }
+    return [];
+  }
+
+  /**
+   * 获取存档槽位信息（不含完整数据）
+   */
+  getSlotInfo(): Array<{ slotId: number; slotName: string; timestamp: number; playTime: number; highScore: number }> {
+    const slots = this.getAllSlots();
+    return slots.map(slot => ({
+      slotId: slot.slotId,
+      slotName: slot.slotName,
+      timestamp: slot.timestamp,
+      playTime: slot.playerStats.totalPlayTime,
+      highScore: slot.playerStats.highScore,
+    }));
+  }
+
+  /**
+   * 选择存档槽位
+   */
+  selectSlot(slotId: number): boolean {
+    if (slotId < 0 || slotId >= MAX_SLOTS) {
+      return false;
+    }
+
+    const slots = this.getAllSlots();
+    const slot = slots.find(s => s.slotId === slotId);
+
+    if (slot && this.verifyChecksum(slot)) {
+      this.currentSave = slot;
+      this.currentSlotId = slotId;
+      return true;
+    }
+
+    // 槽位不存在或校验失败，创建新存档
+    this.currentSlotId = slotId;
+    this.createNewSave();
+    return true;
+  }
+
+  /**
+   * 创建新存档到指定槽位
+   */
+  createNewSaveAtSlot(slotId: number, slotName?: string): SaveData {
+    const newSave: SaveData = {
+      version: '1.79.0',
+      timestamp: Date.now(),
+      slotId,
+      slotName: slotName || `存档 ${slotId + 1}`,
+      checksum: '',
+      playerStats: { ...DEFAULT_PLAYER_STATS },
+      settings: { ...DEFAULT_GAME_SETTINGS },
+      achievements: [],
+      jutsuUpgrades: {},
+      tutorialProgress: { ...DEFAULT_TUTORIAL_PROGRESS },
+      dailyChallenges: { ...DEFAULT_DAILY_CHALLENGE_STATE },
+    };
+    newSave.checksum = this.calculateChecksum(newSave);
+
+    this.currentSave = newSave;
+    this.currentSlotId = slotId;
+    this.saveToSlot();
+    return newSave;
+  }
+
+  /**
+   * 保存到当前槽位
+   */
+  saveToSlot(): void {
+    if (!this.currentSave) return;
+
+    this.currentSave.timestamp = Date.now();
+    this.currentSave.checksum = this.calculateChecksum(this.currentSave);
+
+    let slots = this.getAllSlots();
+    const existingIndex = slots.findIndex(s => s.slotId === this.currentSlotId);
+
+    if (existingIndex >= 0) {
+      slots[existingIndex] = this.currentSave;
+    } else {
+      slots.push(this.currentSave);
+      slots.sort((a, b) => a.slotId - b.slotId);
+    }
+
+    try {
+      localStorage.setItem(SLOTS_KEY, JSON.stringify(slots));
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.currentSave)); // 同时更新主存档
+    } catch (error) {
+      console.error('Failed to save slot:', error);
+    }
+  }
+
+  /**
+   * 删除存档槽位
+   */
+  deleteSlot(slotId: number): boolean {
+    let slots = this.getAllSlots();
+    const index = slots.findIndex(s => s.slotId === slotId);
+
+    if (index >= 0) {
+      slots.splice(index, 1);
+      try {
+        localStorage.setItem(SLOTS_KEY, JSON.stringify(slots));
+        return true;
+      } catch (error) {
+        console.error('Failed to delete slot:', error);
+      }
+    }
+    return false;
+  }
+
+  // ==================== v179: 校验和计算 ====================
+
+  /**
+   * 计算存档校验和
+   */
+  private calculateChecksum(save: SaveData): string {
+    const dataToHash = JSON.stringify({
+      version: save.version,
+      timestamp: save.timestamp,
+      slotId: save.slotId,
+      playerStats: save.playerStats,
+      achievements: save.achievements,
+      jutsuUpgrades: save.jutsuUpgrades,
+    });
+
+    // 简单的哈希算法
+    let hash = 0;
+    for (let i = 0; i < dataToHash.length; i++) {
+      const char = dataToHash.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return `v1_${Math.abs(hash).toString(16)}`;
+  }
+
+  /**
+   * 验证存档校验和
+   */
+  verifyChecksum(save: SaveData): boolean {
+    if (!save.checksum) return false;
+    const calculated = this.calculateChecksum(save);
+    return calculated === save.checksum;
+  }
+
+  // ==================== v179: 自动备份系统 ====================
+
+  /**
+   * 启动自动备份
+   */
+  private startAutoBackup(): void {
+    // 每5分钟自动备份一次
+    this.backupInterval = setInterval(() => {
+      this.createBackup();
+    }, 300000);
+  }
+
+  /**
+   * 创建备份
+   */
+  createBackup(): void {
+    if (!this.currentSave) return;
+
+    try {
+      const backupData = {
+        timestamp: Date.now(),
+        save: this.currentSave,
+      };
+      localStorage.setItem(BACKUP_KEY, JSON.stringify(backupData));
+    } catch (error) {
+      console.error('Failed to create backup:', error);
+    }
+  }
+
+  /**
+   * 从备份恢复
+   */
+  restoreFromBackup(): boolean {
+    try {
+      const backupData = localStorage.getItem(BACKUP_KEY);
+      if (backupData) {
+        const backup = JSON.parse(backupData);
+        if (backup.save && this.verifyChecksum(backup.save)) {
+          this.currentSave = backup.save;
+          this.currentSlotId = backup.save.slotId;
+          this.saveToStorage();
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore backup:', error);
+    }
+    return false;
+  }
+
+  /**
+   * 获取备份信息
+   */
+  getBackupInfo(): { timestamp: number; exists: boolean } {
+    try {
+      const backupData = localStorage.getItem(BACKUP_KEY);
+      if (backupData) {
+        const backup = JSON.parse(backupData);
+        return { timestamp: backup.timestamp, exists: true };
+      }
+    } catch (error) {
+      // 忽略
+    }
+    return { timestamp: 0, exists: false };
+  }
+
+  /**
+   * 停止自动备份
+   */
+  stopAutoBackup(): void {
+    if (this.backupInterval) {
+      clearInterval(this.backupInterval);
+      this.backupInterval = null;
+    }
   }
 
   /**
@@ -128,16 +388,22 @@ class SaveService {
    */
   createNewSave(): SaveData {
     const newSave: SaveData = {
-      version: '1.74.0',
+      version: '1.79.0',
       timestamp: Date.now(),
+      slotId: this.currentSlotId,
+      slotName: `存档 ${this.currentSlotId + 1}`,
+      checksum: '',
       playerStats: { ...DEFAULT_PLAYER_STATS },
       settings: { ...DEFAULT_GAME_SETTINGS },
       achievements: [],
       jutsuUpgrades: {},
       tutorialProgress: { ...DEFAULT_TUTORIAL_PROGRESS },
+      dailyChallenges: { ...DEFAULT_DAILY_CHALLENGE_STATE },
     };
+    newSave.checksum = this.calculateChecksum(newSave);
     this.currentSave = newSave;
     this.saveToStorage();
+    this.saveToSlot();
     return newSave;
   }
 
@@ -376,7 +642,64 @@ class SaveService {
     localStorage.removeItem(SAVE_KEY);
     localStorage.removeItem(SETTINGS_KEY);
     localStorage.removeItem(STATS_KEY);
+    localStorage.removeItem(SLOTS_KEY); // v179
+    localStorage.removeItem(BACKUP_KEY); // v179
     this.currentSave = null;
+  }
+
+  // ==================== v179: 导入导出增强 ====================
+
+  /**
+   * 导出存档数据（带格式化）
+   */
+  exportSaveFormatted(): string {
+    if (!this.currentSave) {
+      return '';
+    }
+    const exportData = {
+      game: 'naruto-seals-game',
+      version: '1.79.0',
+      exportDate: new Date().toISOString(),
+      save: this.currentSave,
+    };
+    return btoa(encodeURIComponent(JSON.stringify(exportData)));
+  }
+
+  /**
+   * 导入存档数据（带验证）
+   */
+  importSaveFormatted(encodedData: string): { success: boolean; error?: string } {
+    try {
+      const decoded = decodeURIComponent(atob(encodedData));
+      const data = JSON.parse(decoded);
+
+      if (data.game !== 'naruto-seals-game') {
+        return { success: false, error: '无效的存档文件' };
+      }
+
+      const saveData = data.save as SaveData;
+      this.currentSave = this.migrateSaveData(saveData);
+      this.currentSlotId = saveData.slotId;
+      this.saveToStorage();
+      this.saveToSlot();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: '存档解析失败' };
+    }
+  }
+
+  /**
+   * 获取当前存档槽位ID
+   */
+  getCurrentSlotId(): number {
+    return this.currentSlotId;
+  }
+
+  /**
+   * 获取最大槽位数
+   */
+  getMaxSlots(): number {
+    return MAX_SLOTS;
   }
 
   /**
@@ -411,8 +734,11 @@ class SaveService {
   private migrateSaveData(save: SaveData): SaveData {
     // 确保所有字段都存在
     const migrated: SaveData = {
-      version: save.version || '1.74.0',
+      version: save.version || '1.79.0',
       timestamp: save.timestamp || Date.now(),
+      slotId: save.slotId ?? this.currentSlotId,
+      slotName: save.slotName || `存档 ${(save.slotId ?? this.currentSlotId) + 1}`,
+      checksum: '',
       playerStats: {
         ...DEFAULT_PLAYER_STATS,
         ...save.playerStats,
@@ -427,8 +753,14 @@ class SaveService {
         ...DEFAULT_TUTORIAL_PROGRESS,
         ...save.tutorialProgress,
       },
+      dailyChallenges: {
+        ...DEFAULT_DAILY_CHALLENGE_STATE,
+        ...save.dailyChallenges,
+      },
     };
 
+    // 计算新的校验和
+    migrated.checksum = this.calculateChecksum(migrated);
     return migrated;
   }
 

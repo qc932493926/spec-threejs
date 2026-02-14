@@ -1,4 +1,5 @@
-import { useRef, useMemo, useEffect, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Enemy, GameState, Jutsu, JutsuInstance } from '../types/index.ts';
@@ -11,6 +12,8 @@ interface GameSceneProps {
 }
 
 // ==================== v42: 几何体池 - 复用几何体避免重复创建 ====================
+// 用于性能优化，后续版本启用
+/*
 class GeometryPool {
   private static instance: GeometryPool;
   private geometries: Map<string, THREE.BufferGeometry> = new Map();
@@ -61,6 +64,7 @@ class GeometryPool {
 }
 
 const geometryPool = GeometryPool.getInstance();
+*/
 
 // 动态星空背景组件
 function Starfield() {
