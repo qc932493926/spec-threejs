@@ -24,13 +24,24 @@ const INITIAL_GAME_STATE: GameState = {
   wave: 1
 };
 
+// v186: 游戏速度类型
+type GameSpeed = 'slow' | 'normal' | 'fast' | 'veryFast';
+
 // 默认设置常量
 const DEFAULT_SETTINGS: {
   volume: number;
+  bgmVolume: number;
+  sfxVolume: number;
+  envVolume: number;
+  gameSpeed: GameSpeed;
   difficulty: 'easy' | 'normal' | 'hard';
   quality: 'low' | 'medium' | 'high';
 } = {
   volume: 70,
+  bgmVolume: 70,
+  sfxVolume: 70,
+  envVolume: 30,
+  gameSpeed: 'normal',
   difficulty: 'normal',
   quality: 'high',
 };
@@ -585,7 +596,7 @@ function App() {
             <div className="mb-6">
               <h3 className="text-lg font-bold text-cyan-400 mb-3">⚙️ 快速设置</h3>
               <div className="grid grid-cols-2 gap-4">
-                {/* 音量控制 */}
+                {/* v185: 音量控制 - 简化版 */}
                 <div className="glass-panel p-3 border border-cyan-500/30">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm">🔊 音量</span>
@@ -598,8 +609,10 @@ function App() {
                     value={settings.volume}
                     onChange={(e) => {
                       const vol = parseInt(e.target.value);
-                      setSettings({ ...settings, volume: vol });
+                      setSettings({ ...settings, volume: vol, bgmVolume: vol, sfxVolume: vol });
                       audioService.setMasterVolume(vol / 100);
+                      audioService.setBGMVolume(vol / 100);
+                      audioService.setSFXVolume(vol / 100);
                     }}
                     className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                   />
@@ -844,19 +857,92 @@ function App() {
               </button>
             </div>
 
-            {/* 音量设置 */}
+            {/* v185: 音量设置 - 分类音量控制 */}
             <div className="mb-6">
-              <label className="block text-lg mb-2">
-                🔊 音量: {settings.volume}%
+              <label className="block text-lg mb-3">
+                🔊 音量控制
               </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={settings.volume}
-                onChange={(e) => setSettings({ ...settings, volume: parseInt(e.target.value) })}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
+              <div className="space-y-4">
+                {/* 主音量 */}
+                <div className="glass-panel p-3 border border-blue-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🎚️ 主音量</span>
+                    <span className="text-sm text-blue-400">{settings.volume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.volume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, volume: vol });
+                      audioService.setMasterVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                {/* BGM音量 */}
+                <div className="glass-panel p-3 border border-purple-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🎵 BGM音量</span>
+                    <span className="text-sm text-purple-400">{settings.bgmVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.bgmVolume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, bgmVolume: vol });
+                      audioService.setBGMVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  />
+                </div>
+
+                {/* 音效音量 */}
+                <div className="glass-panel p-3 border border-green-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">⚔️ 音效音量</span>
+                    <span className="text-sm text-green-400">{settings.sfxVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.sfxVolume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, sfxVolume: vol });
+                      audioService.setSFXVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                </div>
+
+                {/* 环境音量 */}
+                <div className="glass-panel p-3 border border-cyan-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🌿 环境音量</span>
+                    <span className="text-sm text-cyan-400">{settings.envVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.envVolume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, envVolume: vol });
+                      audioService.setEnvironmentVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* 难度设置 */}

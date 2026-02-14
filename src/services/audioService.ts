@@ -48,12 +48,19 @@ class NinjaAudioService {
 
   // 音量配置
   private volumeConfig: VolumeConfig = {
-    master: 0.3,
-    bgm: 0.3,
+    master: 0.7,
+    bgm: 0.7,
     sfx: 0.5,
     environment: 0.15,
     ui: 0.2
   };
+
+  // BGM增益节点
+  private bgmGain: GainNode;
+  // SFX增益节点
+  private sfxGain: GainNode;
+  // UI音效增益节点
+  private uiGain: GainNode;
 
   constructor() {
     this.context = new AudioContext();
@@ -75,6 +82,21 @@ class NinjaAudioService {
     this.weatherGain = this.context.createGain();
     this.weatherGain.gain.value = 0;
     this.weatherGain.connect(this.masterGain);
+
+    // BGM增益节点
+    this.bgmGain = this.context.createGain();
+    this.bgmGain.gain.value = this.volumeConfig.bgm;
+    this.bgmGain.connect(this.masterGain);
+
+    // SFX增益节点
+    this.sfxGain = this.context.createGain();
+    this.sfxGain.gain.value = this.volumeConfig.sfx;
+    this.sfxGain.connect(this.masterGain);
+
+    // UI音效增益节点
+    this.uiGain = this.context.createGain();
+    this.uiGain.gain.value = this.volumeConfig.ui;
+    this.uiGain.connect(this.masterGain);
 
     // 预加载音频文件
     this.preloadAudio();
@@ -974,6 +996,27 @@ class NinjaAudioService {
   setMasterVolume(volume: number) {
     this.volumeConfig.master = Math.max(0, Math.min(1, volume));
     this.masterGain.gain.setValueAtTime(this.volumeConfig.master, this.context.currentTime);
+  }
+
+  // v185: 设置BGM音量
+  setBGMVolume(volume: number) {
+    this.volumeConfig.bgm = Math.max(0, Math.min(1, volume));
+    this.bgmGain.gain.setValueAtTime(this.volumeConfig.bgm, this.context.currentTime);
+    if (this.bgMusic) {
+      this.bgMusic.volume = this.volumeConfig.bgm * this.volumeConfig.master;
+    }
+  }
+
+  // v185: 设置音效音量
+  setSFXVolume(volume: number) {
+    this.volumeConfig.sfx = Math.max(0, Math.min(1, volume));
+    this.sfxGain.gain.setValueAtTime(this.volumeConfig.sfx, this.context.currentTime);
+  }
+
+  // v185: 设置UI音效音量
+  setUIVolume(volume: number) {
+    this.volumeConfig.ui = Math.max(0, Math.min(1, volume));
+    this.uiGain.gain.setValueAtTime(this.volumeConfig.ui, this.context.currentTime);
   }
 
   // 获取音量配置

@@ -1,8 +1,10 @@
 // 游戏版本信息
-export const VERSION = '1.83.0';
-export const VERSION_NAME = '每日挑战';
+export const VERSION = '1.85.0';
+export const VERSION_NAME = '音量控制';
 
 export const VERSION_HISTORY = [
+  { version: '1.85.0', name: '音量控制', date: '2025-02', changes: ['分类音量控制滑块', '主音量/BGM/音效/环境音独立调节', '设置面板音量增强', '暂停菜单快速音量调节'] },
+  { version: '1.84.0', name: '统计面板', date: '2025-02', changes: ['游戏统计面板', '详细数据展示', '历史记录查询', '成就进度显示', '排名信息集成'] },
   { version: '1.83.0', name: '每日挑战', date: '2025-02', changes: ['每日挑战系统', '7种每日任务类型', '挑战完成奖励', '每日刷新机制', '挑战进度追踪'] },
   { version: '1.82.0', name: '敌人扩展', date: '2025-02', changes: ['飞行敌人类型', '分裂敌人类型', '隐形敌人类型', '自爆敌人类型', '召唤师敌人类型'] },
   { version: '1.81.0', name: '忍术扩展', date: '2025-02', changes: ['风遁忍术强化', '土遁忍术强化', '新增强力风遁', '新增防御土遁', '组合忍术扩展'] },
