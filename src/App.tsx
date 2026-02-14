@@ -553,18 +553,98 @@ function App() {
         />
       )}
 
-      {/* 暂停界面 */}
+      {/* 暂停界面 - v180增强 */}
       {isPaused && !gameState.isGameOver && (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
-          <div className="text-center text-white glass-panel p-12 border-2 border-yellow-500/50">
-            <h1 className="text-6xl font-bold mb-8 text-yellow-400" style={{ textShadow: '0 0 30px rgba(250, 204, 21, 0.8)' }}>
+          <div className="text-white glass-panel p-8 border-2 border-yellow-500/50 w-[600px] max-w-[95vw]">
+            <h1 className="text-5xl font-bold mb-6 text-yellow-400 text-center" style={{ textShadow: '0 0 30px rgba(250, 204, 21, 0.8)' }}>
               ⏸️ 游戏暂停
             </h1>
-            <p className="text-xl mb-8 text-gray-300">休息一下，调整状态</p>
-            <div className="flex gap-4 justify-center">
+
+            {/* v180: 当前游戏统计 */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="glass-panel p-3 border border-orange-500/30 text-center">
+                <div className="text-2xl font-bold text-orange-400">{gameState.score}</div>
+                <div className="text-xs text-gray-400">分数</div>
+              </div>
+              <div className="glass-panel p-3 border border-blue-500/30 text-center">
+                <div className="text-2xl font-bold text-blue-400">{Math.floor(gameState.chakra)}</div>
+                <div className="text-xs text-gray-400">查克拉</div>
+              </div>
+              <div className="glass-panel p-3 border border-yellow-500/30 text-center">
+                <div className="text-2xl font-bold text-yellow-400">{gameState.combo}x</div>
+                <div className="text-xs text-gray-400">连击</div>
+              </div>
+              <div className="glass-panel p-3 border border-purple-500/30 text-center">
+                <div className="text-2xl font-bold text-purple-400">{gameState.wave}</div>
+                <div className="text-xs text-gray-400">波次</div>
+              </div>
+            </div>
+
+            {/* v180: 快速设置 */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-cyan-400 mb-3">⚙️ 快速设置</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {/* 音量控制 */}
+                <div className="glass-panel p-3 border border-cyan-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🔊 音量</span>
+                    <span className="text-sm text-cyan-400">{settings.volume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.volume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, volume: vol });
+                      audioService.setMasterVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+
+                {/* 难度显示 */}
+                <div className="glass-panel p-3 border border-cyan-500/30">
+                  <div className="text-sm mb-2">🎯 当前难度</div>
+                  <div className={`text-lg font-bold ${
+                    settings.difficulty === 'easy' ? 'text-green-400' :
+                    settings.difficulty === 'normal' ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {settings.difficulty === 'easy' ? '🌱 简单' :
+                     settings.difficulty === 'normal' ? '⚔️ 普通' : '💀 困难'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* v180: 存档槽位 */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-green-400 mb-3">💾 存档管理</h3>
+              <div className="flex gap-2 justify-center">
+                {[0, 1, 2, 3, 4].map((slotId) => (
+                  <button
+                    key={slotId}
+                    onClick={() => {
+                      // 存档槽位选择功能预留
+                      audioService.playUIClick();
+                    }}
+                    className={`px-4 py-2 rounded-lg transition-all ${
+                      slotId === 0 ? 'bg-green-500/30 border-2 border-green-500' : 'bg-gray-700/50 border-2 border-gray-600'
+                    } hover:border-green-400`}
+                  >
+                    <div className="text-sm">槽位 {slotId + 1}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 按钮组 */}
+            <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setIsPaused(false)}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
               >
                 ▶️ 继续游戏
               </button>
@@ -572,12 +652,35 @@ function App() {
                 onClick={() => {
                   setIsPaused(false);
                   handleResetWithClear();
-                  setIsReady(false);
                 }}
-                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
               >
                 🔄 重新开始
               </button>
+              <button
+                onClick={() => {
+                  setIsPaused(false);
+                  setShowSettings(true);
+                }}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                ⚙️ 详细设置
+              </button>
+              <button
+                onClick={() => {
+                  setIsPaused(false);
+                  handleResetWithClear();
+                  setIsReady(false);
+                }}
+                className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                🏠 返回主菜单
+              </button>
+            </div>
+
+            {/* 快捷键提示 */}
+            <div className="mt-6 text-center text-xs text-gray-500">
+              按 ESC 继续 | R 重新开始 | M 静音
             </div>
           </div>
         </div>
