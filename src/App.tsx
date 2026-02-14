@@ -3,7 +3,7 @@ import { FilesetResolver, GestureRecognizer, DrawingUtils } from '@mediapipe/tas
 import { GameScene } from './components/GameScene';
 import { StartScreen } from './components/StartScreen';
 import type { GameState } from './types/index.ts';
-import { sealEmojis } from './types/index.ts';
+import { sealEmojis, jutsuList } from './types/index.ts';
 import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
 import { achievementService, type Achievement } from './services/achievementService';
@@ -106,6 +106,26 @@ function App() {
   const handleClearSeals = useCallback(() => {
     setGameState(prev => ({ ...prev, currentSeals: [] }));
   }, []);
+
+  // v187: 键盘快捷键 - 数字键释放忍术
+  // 前5个基础忍术可以通过 1-5 数字键快速释放
+  const quickJutsu = useMemo(() => {
+    return jutsuList.slice(0, 5); // 取前5个忍术
+  }, []);
+
+  const handleQuickJutsu = useCallback((index: number) => {
+    if (!isReady || isPaused || gameState.isGameOver) return;
+    const jutsu = quickJutsu[index];
+    if (jutsu && gameState.chakra >= jutsu.chakraCost) {
+      // 模拟手势结印效果
+      setGameState(prev => ({
+        ...prev,
+        currentSeals: jutsu.seals as any,
+        chakra: prev.chakra - jutsu.chakraCost
+      }));
+      audioService.playSealSound(jutsu.seals[0] as any);
+    }
+  }, [isReady, isPaused, gameState.isGameOver, gameState.chakra, quickJutsu]);
 
   // 使用useMemo缓存计算结果
   const chakraPercentage = useMemo(() => {
@@ -319,11 +339,20 @@ function App() {
   // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // v187: 数字键 1-5 快速释放忍术
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 5) {
+        handleQuickJutsu(num - 1);
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (showSettings) {
           setShowSettings(false);
         } else if (showAchievements) {
           setShowAchievements(false);
+        } else if (showLeaderboard) {
+          setShowLeaderboard(false);
         } else if (isReady && !gameState.isGameOver) {
           setIsPaused(prev => !prev);
         }
@@ -341,11 +370,29 @@ function App() {
       if (e.key === ' ' && !isReady) {
         handleStart();
       }
+      // v187: 更多快捷键
+      if (e.key === 's' || e.key === 'S') {
+        if (!showSettings && !gameState.isGameOver) {
+          setShowSettings(true);
+        }
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        if (!isReady && !showTutorial) {
+          setShowTutorial(true);
+          setTutorialStep(0);
+        }
+      }
+      // 清除手印
+      if (e.key === 'c' || e.key === 'C') {
+        if (isReady && !gameState.isGameOver) {
+          handleClearSeals();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements, handleToggleMute, handleResetWithClear, handleStart]);
+  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements, showLeaderboard, handleToggleMute, handleResetWithClear, handleStart, handleQuickJutsu, handleClearSeals]);
 
   // 成就解锁回调
   useEffect(() => {
@@ -462,9 +509,10 @@ function App() {
           </div>
         )}
 
-        {/* 快捷键提示 */}
+        {/* v187: 快捷键提示 */}
         <div className="mt-4 text-xs text-gray-500 space-y-1">
-          <div>ESC 暂停 | M 静音 | R 重置</div>
+          <div>ESC 暂停 | M 静音 | R 重置 | S 设置</div>
+          <div>1-5 释放忍术 | C 清除手印</div>
         </div>
       </div>
 
