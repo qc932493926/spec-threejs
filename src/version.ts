@@ -1,8 +1,13 @@
 // 游戏版本信息
-export const VERSION = '1.95.0';
-export const VERSION_NAME = '移动端优化';
+export const VERSION = '2.0.0';
+export const VERSION_NAME = '正式版发布';
 
 export const VERSION_HISTORY = [
+  { version: '2.0.0', name: '正式版发布', date: '2025-02', changes: ['游戏平衡最终调整', '视觉效果打磨', '音效最终调整', 'bug修复', '正式版发布!'] },
+  { version: '1.99.0', name: '最终测试', date: '2025-02', changes: ['最终测试和修复', '全面bug检查', '性能最终测试'] },
+  { version: '1.98.0', name: '音效调整', date: '2025-02', changes: ['音效最终调整', '音量优化', '音效反馈增强'] },
+  { version: '1.97.0', name: '视觉效果', date: '2025-02', changes: ['粒子效果优化', '光晕效果增强', '阴影优化'] },
+  { version: '1.96.0', name: '游戏平衡', date: '2025-02', changes: ['游戏平衡调整', '敌人强度优化', '忍术平衡'] },
   { version: '1.95.0', name: '移动端优化', date: '2025-02', changes: ['触摸区域优化', '响应式布局', '禁止双击缩放', '触摸友好样式'] },
   { version: '1.94.0', name: '代码清理', date: '2025-02', changes: ['代码注释完善', '清理无用代码', '代码结构优化'] },
   { version: '1.93.0', name: '错误处理', date: '2025-02', changes: ['完善错误处理', '边界条件检查', '异常捕获'] },
