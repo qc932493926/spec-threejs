@@ -8,6 +8,7 @@ import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
 import { achievementService, type Achievement } from './services/achievementService';
 import { leaderboardService } from './services/leaderboardService';
+import { VERSION } from './version.ts';
 import './index.css';
 
 // 初始游戏状态常量，避免每次渲染创建新对象
@@ -77,6 +78,7 @@ function App() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showHelp, setShowHelp] = useState(false); // v188: 游戏内帮助
+  const [showAbout, setShowAbout] = useState(false); // v189: 关于页面
   const [playerName, setPlayerName] = useState('');
   const [lastScore, setLastScore] = useState(0);
   const [lastCombo, setLastCombo] = useState(0);
@@ -627,13 +629,14 @@ function App() {
       </div>
 
       {/* 开始界面 - v61优化动画 */}
-      {!isReady && !showTutorial && (
+      {!isReady && !showTutorial && !showAbout && (
         <StartScreen
           onStart={handleStart}
           onShowTutorial={() => {
             setShowTutorial(true);
             setTutorialStep(0);
           }}
+          onShowAbout={() => setShowAbout(true)}
         />
       )}
 
@@ -1435,6 +1438,72 @@ function App() {
               className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg font-bold transition-all"
             >
               知道了
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* v189: 关于页面 */}
+      {showAbout && (
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-purple-500/50 w-[600px] max-w-[90vw] text-center">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAbout(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <h1 className="text-5xl font-bold mb-4 text-orange-400" style={{ textShadow: '0 0 30px rgba(249, 115, 22, 0.8)' }}>
+              火影结印游戏
+            </h1>
+            <p className="text-2xl mb-6 text-gray-300">Naruto Seal Game</p>
+
+            <div className="text-lg mb-6">
+              <span className="text-purple-400 font-bold">版本:</span> {VERSION}
+            </div>
+
+            <div className="glass-panel p-6 border border-purple-500/30 mb-6 text-left">
+              <h3 className="text-xl font-bold text-yellow-400 mb-4 text-center">游戏介绍</h3>
+              <p className="text-gray-300 mb-4">
+                这是一款使用手势控制释放忍术的动作游戏。通过摄像头识别您的手势，结印后可以释放各种忍术来消灭敌人！
+              </p>
+              <p className="text-gray-300">
+                支持多种忍术组合，包括火遁、水遁、雷遁、风遁、土遁等，还有强大的组合忍术等你来发现！
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div className="glass-panel p-3 border border-blue-500/30">
+                <div className="text-blue-400 font-bold mb-1">技术栈</div>
+                <div className="text-gray-400">React + Three.js + MediaPipe</div>
+              </div>
+              <div className="glass-panel p-3 border border-green-500/30">
+                <div className="text-green-400 font-bold mb-1">手势识别</div>
+                <div className="text-gray-400">Google MediaPipe</div>
+              </div>
+              <div className="glass-panel p-3 border border-orange-500/30">
+                <div className="text-orange-400 font-bold mb-1">开发框架</div>
+                <div className="text-gray-400">Vite + TypeScript</div>
+              </div>
+              <div className="glass-panel p-3 border border-purple-500/30">
+                <div className="text-purple-400 font-bold mb-1">构建工具</div>
+                <div className="text-gray-400">Tailwind CSS</div>
+              </div>
+            </div>
+
+            <div className="text-gray-500 text-sm mb-6">
+              <p>感谢您的支持与喜爱！</p>
+              <p className="mt-2">祝您游戏愉快！</p>
+            </div>
+
+            <button
+              onClick={() => setShowAbout(false)}
+              className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-bold transition-all"
+            >
+              返回
             </button>
           </div>
         </div>

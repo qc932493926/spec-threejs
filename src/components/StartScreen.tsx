@@ -3,6 +3,7 @@ import { VERSION } from '../version.ts';
 interface StartScreenProps {
   onStart: () => void;
   onShowTutorial: () => void;
+  onShowAbout: () => void; // v189: 关于页面
 }
 
 // 预生成粒子位置以避免每次渲染随机变化
@@ -15,7 +16,7 @@ const PARTICLES = [...Array(20)].map((_, i) => ({
   delay: `${i % 10}s`,
 }));
 
-export function StartScreen({ onStart, onShowTutorial }: StartScreenProps) {
+export function StartScreen({ onStart, onShowTutorial, onShowAbout }: StartScreenProps) {
   return (
     <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20 overflow-hidden">
       {/* 粒子背景 - v61 */}
@@ -55,6 +56,12 @@ export function StartScreen({ onStart, onShowTutorial }: StartScreenProps) {
             className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-2xl px-12 py-6 rounded-xl font-bold transition-all transform hover:scale-105 border-2 border-blue-400 button-entrance button-entrance-delay-2"
           >
             📖 新手教程
+          </button>
+          <button
+            onClick={onShowAbout}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xl px-8 py-4 rounded-xl font-bold transition-all transform hover:scale-105 border-2 border-purple-400"
+          >
+            ℹ️ 关于
           </button>
         </div>
 
