@@ -1,8 +1,9 @@
 // 游戏版本信息
-export const VERSION = '1.82.0';
-export const VERSION_NAME = '敌人扩展';
+export const VERSION = '1.83.0';
+export const VERSION_NAME = '每日挑战';
 
 export const VERSION_HISTORY = [
+  { version: '1.83.0', name: '每日挑战', date: '2025-02', changes: ['每日挑战系统', '7种每日任务类型', '挑战完成奖励', '每日刷新机制', '挑战进度追踪'] },
   { version: '1.82.0', name: '敌人扩展', date: '2025-02', changes: ['飞行敌人类型', '分裂敌人类型', '隐形敌人类型', '自爆敌人类型', '召唤师敌人类型'] },
   { version: '1.81.0', name: '忍术扩展', date: '2025-02', changes: ['风遁忍术强化', '土遁忍术强化', '新增强力风遁', '新增防御土遁', '组合忍术扩展'] },
   { version: '1.80.0', name: '暂停增强', date: '2025-02', changes: ['暂停菜单增强', '快速设置面板', '游戏内统计数据', '存档槽位选择', '返回主菜单选项'] },

@@ -1,7 +1,43 @@
 /**
  * 挑战模式系统
  * 提供多种游戏挑战模式
+ * v183: 新增每日挑战系统
  */
+
+/**
+ * v183: 每日挑战定义
+ */
+export interface DailyChallenge {
+  id: string;
+  date: string; // YYYY-MM-DD格式
+  challengeId: string;
+  bonusReward: number; // 额外奖励
+  completed: boolean;
+  progress: number;
+  target: number;
+}
+
+/**
+ * v183: 每日挑战类型
+ */
+export type DailyChallengeTaskType =
+  | 'kill_enemies'      // 击杀敌人
+  | 'reach_wave'        // 到达波次
+  | 'get_combo'         // 获得连击
+  | 'use_jutsu'         // 使用忍术
+  | 'kill_boss'         // 击杀Boss
+  | 'get_score'         // 获得分数
+  | 'perfect_wave';     // 完美波次
+
+/**
+ * v183: 每日挑战任务
+ */
+export interface DailyChallengeTask {
+  type: DailyChallengeTaskType;
+  target: number;
+  description: string;
+  jutsuId?: string; // 如果是use_jutsu类型
+}
 
 /**
  * 挑战模式类型
@@ -508,4 +544,163 @@ export function calculateChallengeScore(challenge: Challenge, baseScore: number,
 
   const multiplier = difficultyMultiplier[challenge.difficulty];
   return Math.floor((baseScore + timeBonus) * multiplier);
+}
+
+// ==================== v183: 每日挑战系统 ====================
+
+/**
+ * 每日挑战模板
+ */
+const dailyChallengeTemplates: Array<{ type: DailyChallengeTaskType; targets: number[]; rewards: number[] }> = [
+  { type: 'kill_enemies', targets: [30, 50, 100], rewards: [500, 1000, 2000] },
+  { type: 'reach_wave', targets: [5, 10, 15], rewards: [800, 1500, 3000] },
+  { type: 'get_combo', targets: [20, 50, 100], rewards: [600, 1200, 2500] },
+  { type: 'use_jutsu', targets: [10, 25, 50], rewards: [400, 800, 1500] },
+  { type: 'kill_boss', targets: [1, 2, 3], rewards: [1000, 2000, 4000] },
+  { type: 'get_score', targets: [5000, 15000, 30000], rewards: [700, 1400, 2800] },
+  { type: 'perfect_wave', targets: [1, 3, 5], rewards: [500, 1000, 2000] },
+];
+
+/**
+ * 生成每日挑战（基于日期种子）
+ */
+export function generateDailyChallenges(date: Date = new Date()): DailyChallenge[] {
+  const dateStr = formatDate(date);
+  const seed = hashString(dateStr);
+  const challenges: DailyChallenge[] = [];
+
+  // 生成3个每日挑战
+  for (let i = 0; i < 3; i++) {
+    const templateIndex = (seed + i) % dailyChallengeTemplates.length;
+    const template = dailyChallengeTemplates[templateIndex];
+    const difficultyIndex = (seed + i * 3) % 3;
+
+    // 创建任务（用于获取描述）
+    createDailyChallengeTask(template.type, template.targets[difficultyIndex]);
+
+    const challenge: DailyChallenge = {
+      id: `daily_${dateStr}_${i}`,
+      date: dateStr,
+      challengeId: `daily_${template.type}_${difficultyIndex}`,
+      bonusReward: template.rewards[difficultyIndex],
+      completed: false,
+      progress: 0,
+      target: template.targets[difficultyIndex],
+    };
+
+    challenges.push(challenge);
+  }
+
+  return challenges;
+}
+
+/**
+ * 创建每日挑战任务描述
+ */
+function createDailyChallengeTask(type: DailyChallengeTaskType, target: number): DailyChallengeTask {
+  const descriptions: Record<DailyChallengeTaskType, string> = {
+    kill_enemies: `击败 ${target} 个敌人`,
+    reach_wave: `到达第 ${target} 波`,
+    get_combo: `达成 ${target} 连击`,
+    use_jutsu: `使用 ${target} 次忍术`,
+    kill_boss: `击败 ${target} 个Boss`,
+    get_score: `获得 ${target} 分`,
+    perfect_wave: `完成 ${target} 个完美波次`,
+  };
+
+  return {
+    type,
+    target,
+    description: descriptions[type],
+  };
+}
+
+/**
+ * 格式化日期为YYYY-MM-DD
+ */
+function formatDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * 简单字符串哈希
+ */
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * 检查是否需要刷新每日挑战
+ */
+export function shouldRefreshDailyChallenges(lastDate: string): boolean {
+  const today = formatDate(new Date());
+  return lastDate !== today;
+}
+
+/**
+ * 获取今日每日挑战
+ */
+export function getTodayDailyChallenges(): DailyChallenge[] {
+  return generateDailyChallenges(new Date());
+}
+
+/**
+ * 更新每日挑战进度
+ */
+export function updateDailyChallengeProgress(
+  challenge: DailyChallenge,
+  increment: number
+): DailyChallenge {
+  const newProgress = Math.min(challenge.progress + increment, challenge.target);
+  return {
+    ...challenge,
+    progress: newProgress,
+    completed: newProgress >= challenge.target,
+  };
+}
+
+/**
+ * 检查每日挑战完成状态
+ */
+export function checkDailyChallengeCompletion(
+  challenge: DailyChallenge,
+  stats: {
+    totalKills: number;
+    maxWave: number;
+    maxCombo: number;
+    jutsuUsed: number;
+    bossKills: number;
+    score: number;
+    perfectWaves: number;
+  }
+): boolean {
+  const { target } = challenge;
+  switch (challenge.challengeId.split('_')[1]) {
+    case 'kill':
+      return stats.totalKills >= target;
+    case 'reach':
+      return stats.maxWave >= target;
+    case 'get':
+      if (challenge.challengeId.includes('combo')) {
+        return stats.maxCombo >= target;
+      }
+      return stats.score >= target;
+    case 'use':
+      return stats.jutsuUsed >= target;
+    case 'boss':
+      return stats.bossKills >= target;
+    case 'perfect':
+      return stats.perfectWaves >= target;
+    default:
+      return false;
+  }
 }
