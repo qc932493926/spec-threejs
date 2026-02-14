@@ -37,15 +37,15 @@ jobs:
         working-directory: ./naruto-seals-game
         run: npm run build
 
-      - name: Verify build output
+      - name: Move dist to root
         run: |
-          ls -la naruto-seals-game/dist/
-          cat naruto-seals-game/dist/index.html | head -20
+          mv naruto-seals-game/dist ./dist
+          ls -la dist/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: naruto-seals-game/dist
+          path: dist
 
   deploy:
     needs: build
