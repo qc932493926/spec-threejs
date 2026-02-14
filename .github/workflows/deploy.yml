@@ -1,4 +1,4 @@
-# Simple build and deploy for GitHub Pages
+# Build and deploy for GitHub Pages
 name: Build and Deploy
 
 on:
@@ -26,16 +26,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: naruto-seals-game/package-lock.json
 
       - name: Install dependencies
-        run: |
-          cd naruto-seals-game
-          npm install
+        working-directory: ./naruto-seals-game
+        run: npm install
 
       - name: Build
+        working-directory: ./naruto-seals-game
+        run: npm run build
+
+      - name: Verify build output
         run: |
-          cd naruto-seals-game
-          npm run build
+          ls -la naruto-seals-game/dist/
+          cat naruto-seals-game/dist/index.html | head -20
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
