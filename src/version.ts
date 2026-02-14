@@ -1,8 +1,9 @@
 // 游戏版本信息
-export const VERSION = '1.85.0';
-export const VERSION_NAME = '音量控制';
+export const VERSION = '1.86.0';
+export const VERSION_NAME = '游戏速度';
 
 export const VERSION_HISTORY = [
+  { version: '1.86.0', name: '游戏速度', date: '2025-02', changes: ['游戏速度选项(0.5x/1x/1.5x/2x)', '设置面板速度选择', '敌人生成速度调整', '查克拉/COMBO计时器调整'] },
   { version: '1.85.0', name: '音量控制', date: '2025-02', changes: ['分类音量控制滑块', '主音量/BGM/音效/环境音独立调节', '设置面板音量增强', '暂停菜单快速音量调节'] },
   { version: '1.84.0', name: '统计面板', date: '2025-02', changes: ['游戏统计面板', '详细数据展示', '历史记录查询', '成就进度显示', '排名信息集成'] },
   { version: '1.83.0', name: '每日挑战', date: '2025-02', changes: ['每日挑战系统', '7种每日任务类型', '挑战完成奖励', '每日刷新机制', '挑战进度追踪'] },

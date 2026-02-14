@@ -24,8 +24,24 @@ const INITIAL_GAME_STATE: GameState = {
   wave: 1
 };
 
+// v186: 游戏速度值映射
+const GAME_SPEED_VALUE: Record<GameSpeed, number> = {
+  slow: 0.5,
+  normal: 1.0,
+  fast: 1.5,
+  veryFast: 2.0
+};
+
 // v186: 游戏速度类型
 type GameSpeed = 'slow' | 'normal' | 'fast' | 'veryFast';
+
+// 游戏速度配置
+const GAME_SPEED_CONFIG = {
+  slow: { label: '0.5x 慢速', value: 0.5, desc: '适合新手练习' },
+  normal: { label: '1x 正常', value: 1.0, desc: '标准游戏速度' },
+  fast: { label: '1.5x 快速', value: 1.5, desc: '更快节奏' },
+  veryFast: { label: '2x 极速', value: 2.0, desc: '极限挑战' }
+};
 
 // 默认设置常量
 const DEFAULT_SETTINGS: {
@@ -366,6 +382,7 @@ function App() {
       <GameScene
         gameState={gameState}
         onGameStateUpdate={handleGameStateUpdate}
+        gameSpeed={GAME_SPEED_VALUE[settings.gameSpeed]}
       />
 
       {/* 波次公告 */}
@@ -967,6 +984,29 @@ function App() {
               </div>
               <p className="text-sm text-gray-400 mt-2">
                 {difficultyInfo[settings.difficulty].desc}
+              </p>
+            </div>
+
+            {/* v186: 游戏速度设置 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">⚡ 游戏速度</label>
+              <div className="flex gap-3">
+                {(Object.keys(GAME_SPEED_CONFIG) as GameSpeed[]).map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setSettings({ ...settings, gameSpeed: speed })}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+                      settings.gameSpeed === speed
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {GAME_SPEED_CONFIG[speed].label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                {GAME_SPEED_CONFIG[settings.gameSpeed].desc}
               </p>
             </div>
 
