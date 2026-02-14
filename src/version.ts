@@ -1,8 +1,9 @@
 // 游戏版本信息
-export const VERSION = '1.80.0';
-export const VERSION_NAME = '暂停增强';
+export const VERSION = '1.81.0';
+export const VERSION_NAME = '忍术扩展';
 
 export const VERSION_HISTORY = [
+  { version: '1.81.0', name: '忍术扩展', date: '2025-02', changes: ['风遁忍术强化', '土遁忍术强化', '新增强力风遁', '新增防御土遁', '组合忍术扩展'] },
   { version: '1.80.0', name: '暂停增强', date: '2025-02', changes: ['暂停菜单增强', '快速设置面板', '游戏内统计数据', '存档槽位选择', '返回主菜单选项'] },
   { version: '1.79.0', name: '存档系统', date: '2025-02', changes: ['游戏存档系统增强', '多存档槽位支持', '存档导入导出功能', '自动备份机制', '存档完整性校验'] },
   { version: '1.78.0', name: '忍术进阶', date: '2025-02', changes: ['忍术升级系统', '10级等级系统', '经验获取机制', '等级奖励加成', '伤害/查克拉/冷却升级'] },

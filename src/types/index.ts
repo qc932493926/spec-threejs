@@ -494,5 +494,141 @@ export const jutsuList: Jutsu[] = [
     buffType: 'combo',
     buffDuration: 20000,
     buffValue: 100 // 连击加成+100%
+  },
+
+  // ========== v181新增：风遁强化忍术 ==========
+  {
+    id: 'wind_devastation',
+    name: '风遁·风尘乱舞',
+    seals: ['风印', '风印', '风印'],
+    chakraCost: 85,
+    cooldown: 12000,
+    damage: 180,
+    effectType: 'area',
+    color: new THREE.Color(0x98fb98),
+    rarity: 'legendary',
+    aoeRadius: 12,
+    chainCount: 5
+  },
+  {
+    id: 'wind_vacuum',
+    name: '风遁·真空波',
+    seals: ['风印', '土印'],
+    chakraCost: 40,
+    cooldown: 4000,
+    damage: 55,
+    effectType: 'projectile',
+    color: new THREE.Color(0xc0ffc0),
+    rarity: 'rare',
+    bonusDamage: 25
+  },
+  {
+    id: 'wind_gale_palace',
+    name: '风遁·风神掌',
+    seals: ['风印', '雷印', '土印'],
+    chakraCost: 70,
+    cooldown: 8000,
+    damage: 120,
+    effectType: 'area',
+    color: new THREE.Color(0x7fff00),
+    rarity: 'epic',
+    aoeRadius: 10,
+    bonusDamage: 50
+  },
+  {
+    id: 'wind_scythe',
+    name: '风遁·镰鼬之风',
+    seals: ['风印', '风印'],
+    chakraCost: 30,
+    cooldown: 3500,
+    damage: 45,
+    effectType: 'projectile',
+    color: new THREE.Color(0xadff2f),
+    rarity: 'rare',
+    criticalChance: 20
+  },
+
+  // ========== v181新增：土遁强化忍术 ==========
+  {
+    id: 'earth_spear',
+    name: '土遁·土矛',
+    seals: ['土印', '土印'],
+    chakraCost: 25,
+    cooldown: 2500,
+    damage: 50,
+    effectType: 'projectile',
+    color: new THREE.Color(0xcd853f),
+    rarity: 'rare',
+    bonusDamage: 20
+  },
+  {
+    id: 'earth_swamp',
+    name: '土遁·沼陷之术',
+    seals: ['土印', '水印'],
+    chakraCost: 45,
+    cooldown: 10000,
+    damage: 30,
+    effectType: 'debuff',
+    color: new THREE.Color(0x556b2f),
+    rarity: 'epic',
+    buffType: 'speed',
+    buffDuration: 8000,
+    buffValue: -50, // 减速敌人
+    aoeRadius: 15
+  },
+  {
+    id: 'earth_mountain',
+    name: '土遁·土陆大军',
+    seals: ['土印', '土印', '土印'],
+    chakraCost: 80,
+    cooldown: 15000,
+    damage: 200,
+    effectType: 'area',
+    color: new THREE.Color(0x8b4513),
+    rarity: 'legendary',
+    aoeRadius: 18,
+    bonusDamage: 100
+  },
+  {
+    id: 'earth_dragon_bullet',
+    name: '土遁·土龙弹',
+    seals: ['土印', '火印', '土印'],
+    chakraCost: 60,
+    cooldown: 7000,
+    damage: 100,
+    effectType: 'projectile',
+    color: new THREE.Color(0xd2691e),
+    rarity: 'epic',
+    bonusDamage: 60,
+    aoeRadius: 5
+  },
+  {
+    id: 'earth_shield_ultimate',
+    name: '土遁·大地护盾',
+    seals: ['土印', '风印', '土印'],
+    chakraCost: 55,
+    cooldown: 20000,
+    damage: 0,
+    effectType: 'shield',
+    color: new THREE.Color(0xdaa520),
+    rarity: 'legendary',
+    buffType: 'defense',
+    buffDuration: 15000,
+    buffValue: 90
+  },
+
+  // ========== v181新增：风土组合忍术 ==========
+  {
+    id: 'dust_storm',
+    name: '风遁·尘遁·原界剥离',
+    seals: ['风印', '土印', '风印', '土印'],
+    chakraCost: 100,
+    cooldown: 20000,
+    damage: 350,
+    effectType: 'ultimate',
+    color: new THREE.Color(0xfff8dc),
+    rarity: 'mythic',
+    aoeRadius: 20,
+    bonusDamage: 150
   }
 ];
