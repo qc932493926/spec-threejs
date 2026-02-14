@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, memo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Enemy, GameState, Jutsu, JutsuInstance } from '../types/index.ts';
@@ -805,7 +805,8 @@ function createEnemy(health: number = 100, speed: number = 2, wave: number = 1):
 }
 
 // 主场景组件
-export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpdate, gameSpeed = 1.0 }) => {
+// v190: 使用 memo 优化组件
+export const GameScene: React.FC<GameSceneProps> = memo(({ gameState, onGameStateUpdate, gameSpeed = 1.0 }) => {
 
   // 检测手印并发射忍术
   useEffect(() => {
@@ -872,4 +873,4 @@ export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpda
       </Canvas>
     </div>
   );
-};
+});
