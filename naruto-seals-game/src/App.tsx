@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { FilesetResolver, GestureRecognizer, DrawingUtils } from '@mediapipe/tasks-vision';
 import { GameScene } from './components/GameScene';
+import { StartScreen } from './components/StartScreen';
 import type { GameState } from './types/index.ts';
-import { sealEmojis } from './types/index.ts';
+import { sealEmojis, jutsuList } from './types/index.ts';
 import { detectNinjaSeal, getSealType } from './services/gestureService';
 import { audioService } from './services/audioService';
 import { achievementService, type Achievement } from './services/achievementService';
@@ -10,45 +11,162 @@ import { leaderboardService } from './services/leaderboardService';
 import { VERSION } from './version.ts';
 import './index.css';
 
+// 初始游戏状态常量，避免每次渲染创建新对象
+const INITIAL_GAME_STATE: GameState = {
+  chakra: 100,
+  maxChakra: 100,
+  score: 0,
+  combo: 0,
+  comboTimer: 0,
+  currentSeals: [],
+  enemies: [],
+  jutsuInstances: [],
+  isGameOver: false,
+  wave: 1
+};
+
+// v186: 游戏速度值映射
+const GAME_SPEED_VALUE: Record<GameSpeed, number> = {
+  slow: 0.5,
+  normal: 1.0,
+  fast: 1.5,
+  veryFast: 2.0
+};
+
+// v186: 游戏速度类型
+type GameSpeed = 'slow' | 'normal' | 'fast' | 'veryFast';
+
+// 游戏速度配置
+const GAME_SPEED_CONFIG = {
+  slow: { label: '0.5x 慢速', value: 0.5, desc: '适合新手练习' },
+  normal: { label: '1x 正常', value: 1.0, desc: '标准游戏速度' },
+  fast: { label: '1.5x 快速', value: 1.5, desc: '更快节奏' },
+  veryFast: { label: '2x 极速', value: 2.0, desc: '极限挑战' }
+};
+
+// 默认设置常量
+const DEFAULT_SETTINGS: {
+  volume: number;
+  bgmVolume: number;
+  sfxVolume: number;
+  envVolume: number;
+  gameSpeed: GameSpeed;
+  difficulty: 'easy' | 'normal' | 'hard';
+  quality: 'low' | 'medium' | 'high';
+} = {
+  volume: 70,
+  bgmVolume: 70,
+  sfxVolume: 70,
+  envVolume: 30,
+  gameSpeed: 'normal',
+  difficulty: 'normal',
+  quality: 'high',
+};
+
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<GameState>({
-    chakra: 100,
-    maxChakra: 100,
-    score: 0,
-    combo: 0,
-    comboTimer: 0,
-    currentSeals: [],
-    enemies: [],
-    jutsuInstances: [],
-    isGameOver: false,
-    wave: 1
-  });
+  const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({
-    volume: 70,
-    difficulty: 'normal' as 'easy' | 'normal' | 'hard',
-    quality: 'high' as 'low' | 'medium' | 'high',
-  });
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [achievementNotification, setAchievementNotification] = useState<Achievement | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [showHelp, setShowHelp] = useState(false); // v188: 游戏内帮助
+  const [showAbout, setShowAbout] = useState(false); // v189: 关于页面
   const [playerName, setPlayerName] = useState('');
   const [lastScore, setLastScore] = useState(0);
   const [lastCombo, setLastCombo] = useState(0);
   const [lastWave, setLastWave] = useState(1);
-  const [prevWave, setPrevWave] = useState(1);
   const [showWaveAnnounce, setShowWaveAnnounce] = useState(false);
   const lastGestureRef = useRef<string>('None');
   const gestureCooldownRef = useRef<number>(0);
   const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
   const animationFrameRef = useRef<number>(0);
+  const gameOverProcessedRef = useRef<boolean>(false);
+  const prevWaveAnnounceRef = useRef<number>(1);
+
+  // 使用useCallback优化事件处理函数
+  const handleGameStateUpdate = useCallback((updates: Partial<GameState>) => {
+    setGameState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const handleStart = useCallback(() => {
+    audioService.resume();
+    setIsReady(true);
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    audioService.toggleMute();
+    setIsMuted(prev => !prev);
+  }, []);
+
+  const handleClearSeals = useCallback(() => {
+    setGameState(prev => ({ ...prev, currentSeals: [] }));
+  }, []);
+
+  // v187: 键盘快捷键 - 数字键释放忍术
+  // 前5个基础忍术可以通过 1-5 数字键快速释放
+  const quickJutsu = useMemo(() => {
+    return jutsuList.slice(0, 5); // 取前5个忍术
+  }, []);
+
+  const handleQuickJutsu = useCallback((index: number) => {
+    if (!isReady || isPaused || gameState.isGameOver) return;
+    const jutsu = quickJutsu[index];
+    if (jutsu && gameState.chakra >= jutsu.chakraCost) {
+      // 模拟手势结印效果
+      setGameState(prev => ({
+        ...prev,
+        currentSeals: jutsu.seals as any,
+        chakra: prev.chakra - jutsu.chakraCost
+      }));
+      audioService.playSealSound(jutsu.seals[0] as any);
+    }
+  }, [isReady, isPaused, gameState.isGameOver, gameState.chakra, quickJutsu]);
+
+  // 使用useMemo缓存计算结果
+  const chakraPercentage = useMemo(() => {
+    return (gameState.chakra / gameState.maxChakra) * 100;
+  }, [gameState.chakra, gameState.maxChakra]);
+
+  // 缓存难度相关的文本
+  const difficultyInfo = useMemo(() => ({
+    easy: { label: '🌱 简单', desc: '敌人较弱，适合新手练习' },
+    normal: { label: '⚔️ 普通', desc: '标准难度，体验完整游戏' },
+    hard: { label: '💀 困难', desc: '敌人强劲，挑战极限' }
+  }), []);
+
+  // 缓存画质相关的文本
+  const qualityInfo = useMemo(() => ({
+    low: { label: '📉 低', desc: '低画质，提升性能' },
+    medium: { label: '📊 中', desc: '平衡画质与性能' },
+    high: { label: '📈 高', desc: '高画质，最佳视觉体验' }
+  }), []);
+
+  // 缓存评价文本
+  const scoreEvaluation = useMemo(() => {
+    const score = lastScore || gameState.score;
+    if (score >= 5000) return '🌟 传说中的忍者！';
+    if (score >= 2000) return '⭐ 精英上忍！';
+    if (score >= 1000) return '✨ 中忍水平';
+    if (score >= 500) return '📝 下忍入门';
+    return '💪 继续努力！';
+  }, [lastScore, gameState.score]);
+
+  // 波次公告文本
+  const waveAnnounceText = useMemo(() => {
+    const wave = gameState.wave;
+    if (wave <= 3) return '敌人来袭!';
+    if (wave <= 5) return '难度提升!';
+    if (wave <= 8) return '危机四伏!';
+    return '最终决战!';
+  }, [gameState.wave]);
 
   useEffect(() => {
     // 只有在isReady为true时才初始化MediaPipe
@@ -195,68 +313,51 @@ function App() {
     };
   }, [isReady]);
 
-  const handleGameStateUpdate = (updates: Partial<GameState>) => {
-    setGameState(prev => ({ ...prev, ...updates }));
-  };
-
-  const handleStart = () => {
-    audioService.resume();
-    setIsReady(true);
-  };
-
-  const handleReset = () => {
-    // 在重置前更新成就统计
-    achievementService.updateStats({
-      gamesPlayed: 1,
-    });
-
-    setGameState({
-      chakra: 100,
-      maxChakra: 100,
-      score: 0,
-      combo: 0,
-      comboTimer: 0,
-      currentSeals: [],
-      enemies: [],
-      jutsuInstances: [],
-      isGameOver: false,
-      wave: 1
-    });
-    setPlayerName('');
-    setShowLeaderboard(false);
-  };
-
-  // 游戏结束时保存分数
-  useEffect(() => {
-    if (gameState.isGameOver && lastScore === 0) {
+  // 处理游戏结束状态保存 - 直接在渲染时处理
+  if (gameState.isGameOver && !gameOverProcessedRef.current) {
+    gameOverProcessedRef.current = true;
+    // 使用setTimeout来延迟状态更新，避免渲染期间更新
+    setTimeout(() => {
       setLastScore(gameState.score);
       setLastCombo(gameState.combo);
       setLastWave(gameState.wave);
-
-      // 更新成就统计
       achievementService.updateStats({
         totalScore: gameState.score,
         maxCombo: gameState.combo,
         maxWave: gameState.wave,
       });
-    }
-  }, [gameState.isGameOver, lastScore]);
+    }, 0);
+  }
 
-  const handleToggleMute = () => {
-    audioService.toggleMute();
-    setIsMuted(!isMuted);
-  };
+  // 重置游戏时清理标记
+  const handleResetWithClear = useCallback(() => {
+    gameOverProcessedRef.current = false;
+    prevWaveAnnounceRef.current = 1;
+    achievementService.updateStats({ gamesPlayed: 1 });
+    setGameState(INITIAL_GAME_STATE);
+    setPlayerName('');
+    setShowLeaderboard(false);
+  }, []);
 
   // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // v187: 数字键 1-5 快速释放忍术
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 5) {
+        handleQuickJutsu(num - 1);
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (showSettings) {
           setShowSettings(false);
         } else if (showAchievements) {
           setShowAchievements(false);
+        } else if (showLeaderboard) {
+          setShowLeaderboard(false);
         } else if (isReady && !gameState.isGameOver) {
-          setIsPaused(!isPaused);
+          setIsPaused(prev => !prev);
         }
       }
       if (e.key === 'm' || e.key === 'M') {
@@ -264,7 +365,7 @@ function App() {
       }
       if (e.key === 'r' || e.key === 'R') {
         if (gameState.isGameOver || isPaused) {
-          handleReset();
+          handleResetWithClear();
           setIsPaused(false);
           if (!isReady) setIsReady(true);
         }
@@ -272,11 +373,29 @@ function App() {
       if (e.key === ' ' && !isReady) {
         handleStart();
       }
+      // v187: 更多快捷键
+      if (e.key === 's' || e.key === 'S') {
+        if (!showSettings && !gameState.isGameOver) {
+          setShowSettings(true);
+        }
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        if (!isReady && !showTutorial) {
+          setShowTutorial(true);
+          setTutorialStep(0);
+        }
+      }
+      // 清除手印
+      if (e.key === 'c' || e.key === 'C') {
+        if (isReady && !gameState.isGameOver) {
+          handleClearSeals();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements]);
+  }, [isReady, isPaused, gameState.isGameOver, showSettings, showAchievements, showLeaderboard, handleToggleMute, handleResetWithClear, handleStart, handleQuickJutsu, handleClearSeals]);
 
   // 成就解锁回调
   useEffect(() => {
@@ -291,13 +410,21 @@ function App() {
 
   // 检测波次变化并显示公告
   useEffect(() => {
-    if (gameState.wave > prevWave && isReady) {
-      setShowWaveAnnounce(true);
-      setPrevWave(gameState.wave);
-      const timer = setTimeout(() => setShowWaveAnnounce(false), 2000);
-      return () => clearTimeout(timer);
+    if (gameState.wave > prevWaveAnnounceRef.current && isReady) {
+      prevWaveAnnounceRef.current = gameState.wave;
+
+      // 使用setTimeout来延迟设置，避免同步setState警告
+      const rafId: number = requestAnimationFrame(() => {
+        setShowWaveAnnounce(true);
+      });
+      const timer: ReturnType<typeof setTimeout> = setTimeout(() => setShowWaveAnnounce(false), 2000);
+
+      return () => {
+        cancelAnimationFrame(rafId);
+        clearTimeout(timer);
+      };
     }
-  }, [gameState.wave, prevWave, isReady]);
+  }, [gameState.wave, isReady]);
 
   return (
     <div className="relative w-screen h-screen bg-gradient-to-b from-gray-900 to-black overflow-hidden">
@@ -305,6 +432,7 @@ function App() {
       <GameScene
         gameState={gameState}
         onGameStateUpdate={handleGameStateUpdate}
+        gameSpeed={GAME_SPEED_VALUE[settings.gameSpeed]}
       />
 
       {/* 波次公告 */}
@@ -315,9 +443,7 @@ function App() {
               WAVE {gameState.wave}
             </div>
             <div className="text-3xl text-yellow-400">
-              {gameState.wave <= 3 ? '敌人来袭!' :
-               gameState.wave <= 5 ? '难度提升!' :
-               gameState.wave <= 8 ? '危机四伏!' : '最终决战!'}
+              {waveAnnounceText}
             </div>
           </div>
         </div>
@@ -335,7 +461,7 @@ function App() {
             <span className="text-xl">{isMuted ? "🔇" : "🔊"}</span>
           </button>
           <button
-            onClick={() => setIsPaused(!isPaused)}
+            onClick={() => setIsPaused(prev => !prev)}
             className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
             title={isPaused ? "继续游戏" : "暂停游戏"}
           >
@@ -355,6 +481,13 @@ function App() {
           >
             <span className="text-xl">🏆</span>
           </button>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 border-2 border-gray-600 rounded-lg transition-all flex items-center gap-2 hover:scale-105"
+            title="帮助"
+          >
+            <span className="text-xl">❓</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-4 mb-4">
@@ -362,7 +495,7 @@ function App() {
           <div className="w-48 h-6 bg-gray-800 border-2 border-blue-400 rounded-full overflow-hidden chakra-pulse">
             <div
               className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 transition-all duration-300"
-              style={{ width: `${(gameState.chakra / gameState.maxChakra) * 100}%` }}
+              style={{ width: `${chakraPercentage}%` }}
             />
           </div>
           <span className="text-xl font-mono">{Math.floor(gameState.chakra)}</span>
@@ -386,9 +519,10 @@ function App() {
           </div>
         )}
 
-        {/* 快捷键提示 */}
+        {/* v187: 快捷键提示 */}
         <div className="mt-4 text-xs text-gray-500 space-y-1">
-          <div>ESC 暂停 | M 静音 | R 重置</div>
+          <div>ESC 暂停 | M 静音 | R 重置 | S 设置</div>
+          <div>1-5 释放忍术 | C 清除手印</div>
         </div>
       </div>
 
@@ -412,7 +546,7 @@ function App() {
         </div>
         {gameState.currentSeals.length > 0 && (
           <button
-            onClick={() => setGameState(prev => ({ ...prev, currentSeals: [] }))}
+            onClick={handleClearSeals}
             className="mt-2 text-sm text-red-400 hover:text-red-300 transition-colors hover:underline"
           >
             ✕ 清除手印
@@ -494,141 +628,148 @@ function App() {
         </div>
       </div>
 
-      {/* 开始界面 */}
-      {!isReady && !showTutorial && (
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-20">
-          <div className="text-center text-white max-w-5xl px-8">
-            <h1 className="text-7xl font-bold mb-6 title-shine">火影结印游戏</h1>
-            <p className="text-2xl mb-4 text-gray-300">Naruto Seal Game</p>
-            <p className="text-3xl mb-12 text-orange-300">使用手势施放忍术，消灭敌人!</p>
-
-            <div className="flex gap-4 justify-center mb-12">
-              <button
-                onClick={handleStart}
-                className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-3xl px-16 py-6 rounded-xl font-bold transition-all transform hover:scale-110 btn-glow border-2 border-orange-400"
-              >
-                🎮 开始游戏
-              </button>
-              <button
-                onClick={() => {
-                  setShowTutorial(true);
-                  setTutorialStep(0);
-                }}
-                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-2xl px-12 py-6 rounded-xl font-bold transition-all transform hover:scale-105 border-2 border-blue-400"
-              >
-                📖 新手教程
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-12 text-left">
-              {/* 手势说明 */}
-              <div className="glass-panel p-8 border-2 border-blue-500/50 hover:border-blue-400 transition-colors">
-                <h2 className="text-3xl font-bold mb-6 text-blue-400 text-center">手势说明</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">✋</span>
-                    <span className="text-xl">张开手掌 = 火印 🔥</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">✊</span>
-                    <span className="text-xl">握拳 = 水印 💧</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">☝️</span>
-                    <span className="text-xl">食指向上 = 雷印 ⚡</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">👍</span>
-                    <span className="text-xl">拇指向上 = 风印 💨</span>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">✌️</span>
-                    <span className="text-xl">V字手势 = 土印 🗿</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 技能说明 */}
-              <div className="glass-panel p-8 border-2 border-purple-500/50 hover:border-purple-400 transition-colors">
-                <h2 className="text-3xl font-bold mb-6 text-purple-400 text-center">技能释放</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">🔥</span>
-                    <div>
-                      <span className="text-xl">火遁·豪火球之术</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 30</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">💧</span>
-                    <div>
-                      <span className="text-xl">水遁·水龙弹之术</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 35</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">⚡</span>
-                    <div>
-                      <span className="text-xl">雷遁·千鸟</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 50</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">💨</span>
-                    <div>
-                      <span className="text-xl">风遁·螺旋手里剑</span>
-                      <span className="text-sm text-gray-400 ml-2">伤害: 25</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <span className="text-5xl">🗿</span>
-                    <div>
-                      <span className="text-xl">土遁·土流壁</span>
-                      <span className="text-sm text-gray-400 ml-2">防御</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 text-yellow-400 text-xl glass-panel inline-block px-6 py-3">
-              <p>💡 提示: 组合不同手印可以释放更强大的忍术!</p>
-              <p className="text-orange-300 text-lg mt-1">🔥 + ⚡ = 火雷爆发 (伤害: 80)</p>
-            </div>
-
-            {/* 版本信息 */}
-            <div className="mt-6 text-gray-500 text-sm">
-              Version {VERSION} | Made with ❤️
-            </div>
-          </div>
-        </div>
+      {/* 开始界面 - v61优化动画 */}
+      {!isReady && !showTutorial && !showAbout && (
+        <StartScreen
+          onStart={handleStart}
+          onShowTutorial={() => {
+            setShowTutorial(true);
+            setTutorialStep(0);
+          }}
+          onShowAbout={() => setShowAbout(true)}
+        />
       )}
 
-      {/* 暂停界面 */}
+      {/* 暂停界面 - v180增强 */}
       {isPaused && !gameState.isGameOver && (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
-          <div className="text-center text-white glass-panel p-12 border-2 border-yellow-500/50">
-            <h1 className="text-6xl font-bold mb-8 text-yellow-400" style={{ textShadow: '0 0 30px rgba(250, 204, 21, 0.8)' }}>
+          <div className="text-white glass-panel p-8 border-2 border-yellow-500/50 w-[600px] max-w-[95vw]">
+            <h1 className="text-5xl font-bold mb-6 text-yellow-400 text-center" style={{ textShadow: '0 0 30px rgba(250, 204, 21, 0.8)' }}>
               ⏸️ 游戏暂停
             </h1>
-            <p className="text-xl mb-8 text-gray-300">休息一下，调整状态</p>
-            <div className="flex gap-4 justify-center">
+
+            {/* v180: 当前游戏统计 */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="glass-panel p-3 border border-orange-500/30 text-center">
+                <div className="text-2xl font-bold text-orange-400">{gameState.score}</div>
+                <div className="text-xs text-gray-400">分数</div>
+              </div>
+              <div className="glass-panel p-3 border border-blue-500/30 text-center">
+                <div className="text-2xl font-bold text-blue-400">{Math.floor(gameState.chakra)}</div>
+                <div className="text-xs text-gray-400">查克拉</div>
+              </div>
+              <div className="glass-panel p-3 border border-yellow-500/30 text-center">
+                <div className="text-2xl font-bold text-yellow-400">{gameState.combo}x</div>
+                <div className="text-xs text-gray-400">连击</div>
+              </div>
+              <div className="glass-panel p-3 border border-purple-500/30 text-center">
+                <div className="text-2xl font-bold text-purple-400">{gameState.wave}</div>
+                <div className="text-xs text-gray-400">波次</div>
+              </div>
+            </div>
+
+            {/* v180: 快速设置 */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-cyan-400 mb-3">⚙️ 快速设置</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {/* v185: 音量控制 - 简化版 */}
+                <div className="glass-panel p-3 border border-cyan-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🔊 音量</span>
+                    <span className="text-sm text-cyan-400">{settings.volume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.volume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, volume: vol, bgmVolume: vol, sfxVolume: vol });
+                      audioService.setMasterVolume(vol / 100);
+                      audioService.setBGMVolume(vol / 100);
+                      audioService.setSFXVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+
+                {/* 难度显示 */}
+                <div className="glass-panel p-3 border border-cyan-500/30">
+                  <div className="text-sm mb-2">🎯 当前难度</div>
+                  <div className={`text-lg font-bold ${
+                    settings.difficulty === 'easy' ? 'text-green-400' :
+                    settings.difficulty === 'normal' ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {settings.difficulty === 'easy' ? '🌱 简单' :
+                     settings.difficulty === 'normal' ? '⚔️ 普通' : '💀 困难'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* v180: 存档槽位 */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-green-400 mb-3">💾 存档管理</h3>
+              <div className="flex gap-2 justify-center">
+                {[0, 1, 2, 3, 4].map((slotId) => (
+                  <button
+                    key={slotId}
+                    onClick={() => {
+                      // 存档槽位选择功能预留
+                      audioService.playUIClick();
+                    }}
+                    className={`px-4 py-2 rounded-lg transition-all ${
+                      slotId === 0 ? 'bg-green-500/30 border-2 border-green-500' : 'bg-gray-700/50 border-2 border-gray-600'
+                    } hover:border-green-400`}
+                  >
+                    <div className="text-sm">槽位 {slotId + 1}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 按钮组 */}
+            <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setIsPaused(false)}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
               >
                 ▶️ 继续游戏
               </button>
               <button
                 onClick={() => {
                   setIsPaused(false);
-                  handleReset();
-                  setIsReady(false);
+                  handleResetWithClear();
                 }}
-                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105"
+                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
               >
                 🔄 重新开始
               </button>
+              <button
+                onClick={() => {
+                  setIsPaused(false);
+                  setShowSettings(true);
+                }}
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                ⚙️ 详细设置
+              </button>
+              <button
+                onClick={() => {
+                  setIsPaused(false);
+                  handleResetWithClear();
+                  setIsReady(false);
+                }}
+                className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white text-lg px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105"
+              >
+                🏠 返回主菜单
+              </button>
+            </div>
+
+            {/* 快捷键提示 */}
+            <div className="mt-6 text-center text-xs text-gray-500">
+              按 ESC 继续 | R 重新开始 | M 静音
             </div>
           </div>
         </div>
@@ -662,10 +803,7 @@ function App() {
             {/* 评价 */}
             <div className="mb-8 p-4 rounded-lg bg-gradient-to-r from-orange-500/20 via-red-500/20 to-orange-500/20 border border-orange-500/30">
               <p className="text-xl">
-                {(lastScore || gameState.score) >= 5000 ? '🌟 传说中的忍者！' :
-                 (lastScore || gameState.score) >= 2000 ? '⭐ 精英上忍！' :
-                 (lastScore || gameState.score) >= 1000 ? '✨ 中忍水平' :
-                 (lastScore || gameState.score) >= 500 ? '📝 下忍入门' : '💪 继续努力！'}
+                {scoreEvaluation}
               </p>
             </div>
 
@@ -705,7 +843,7 @@ function App() {
             {/* 按钮组 */}
             <div className="flex gap-4 justify-center flex-wrap">
               <button
-                onClick={handleReset}
+                onClick={handleResetWithClear}
                 className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white text-xl px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105 btn-glow border-2 border-orange-400"
               >
                 🔄 再战一次
@@ -795,19 +933,92 @@ function App() {
               </button>
             </div>
 
-            {/* 音量设置 */}
+            {/* v185: 音量设置 - 分类音量控制 */}
             <div className="mb-6">
-              <label className="block text-lg mb-2">
-                🔊 音量: {settings.volume}%
+              <label className="block text-lg mb-3">
+                🔊 音量控制
               </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={settings.volume}
-                onChange={(e) => setSettings({ ...settings, volume: parseInt(e.target.value) })}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
+              <div className="space-y-4">
+                {/* 主音量 */}
+                <div className="glass-panel p-3 border border-blue-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🎚️ 主音量</span>
+                    <span className="text-sm text-blue-400">{settings.volume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.volume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, volume: vol });
+                      audioService.setMasterVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                {/* BGM音量 */}
+                <div className="glass-panel p-3 border border-purple-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🎵 BGM音量</span>
+                    <span className="text-sm text-purple-400">{settings.bgmVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.bgmVolume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, bgmVolume: vol });
+                      audioService.setBGMVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  />
+                </div>
+
+                {/* 音效音量 */}
+                <div className="glass-panel p-3 border border-green-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">⚔️ 音效音量</span>
+                    <span className="text-sm text-green-400">{settings.sfxVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.sfxVolume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, sfxVolume: vol });
+                      audioService.setSFXVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                </div>
+
+                {/* 环境音量 */}
+                <div className="glass-panel p-3 border border-cyan-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm">🌿 环境音量</span>
+                    <span className="text-sm text-cyan-400">{settings.envVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={settings.envVolume}
+                    onChange={(e) => {
+                      const vol = parseInt(e.target.value);
+                      setSettings({ ...settings, envVolume: vol });
+                      audioService.setEnvironmentVolume(vol / 100);
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* 难度设置 */}
@@ -826,15 +1037,35 @@ function App() {
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {diff === 'easy' ? '🌱 简单' :
-                     diff === 'normal' ? '⚔️ 普通' : '💀 困难'}
+                    {difficultyInfo[diff].label}
                   </button>
                 ))}
               </div>
               <p className="text-sm text-gray-400 mt-2">
-                {settings.difficulty === 'easy' ? '敌人较弱，适合新手练习' :
-                 settings.difficulty === 'normal' ? '标准难度，体验完整游戏' :
-                 '敌人强劲，挑战极限'}
+                {difficultyInfo[settings.difficulty].desc}
+              </p>
+            </div>
+
+            {/* v186: 游戏速度设置 */}
+            <div className="mb-6">
+              <label className="block text-lg mb-2">⚡ 游戏速度</label>
+              <div className="flex gap-3">
+                {(Object.keys(GAME_SPEED_CONFIG) as GameSpeed[]).map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setSettings({ ...settings, gameSpeed: speed })}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all ${
+                      settings.gameSpeed === speed
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {GAME_SPEED_CONFIG[speed].label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                {GAME_SPEED_CONFIG[settings.gameSpeed].desc}
               </p>
             </div>
 
@@ -852,15 +1083,12 @@ function App() {
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {qual === 'low' ? '📉 低' :
-                     qual === 'medium' ? '📊 中' : '📈 高'}
+                    {qualityInfo[qual].label}
                   </button>
                 ))}
               </div>
               <p className="text-sm text-gray-400 mt-2">
-                {settings.quality === 'low' ? '低画质，提升性能' :
-                 settings.quality === 'medium' ? '平衡画质与性能' :
-                 '高画质，最佳视觉体验'}
+                {qualityInfo[settings.quality].desc}
               </p>
             </div>
 
@@ -877,7 +1105,7 @@ function App() {
               </button>
               <button
                 onClick={() => {
-                  setSettings({ volume: 70, difficulty: 'normal', quality: 'high' });
+                  setSettings(DEFAULT_SETTINGS);
                   audioService.playUIClick();
                 }}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-bold transition-all"
@@ -1129,6 +1357,154 @@ function App() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* v188: 帮助面板 */}
+      {showHelp && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-cyan-500/50 w-[600px] max-w-[90vw] max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-cyan-400">❓ 游戏帮助</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 手势说明 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-orange-400 mb-3">✋ 手势说明</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="glass-panel p-2 border border-orange-500/30 flex items-center gap-2">
+                  <span className="text-2xl">✋</span> <span>张开手掌 → 火印 🔥</span>
+                </div>
+                <div className="glass-panel p-2 border border-blue-500/30 flex items-center gap-2">
+                  <span className="text-2xl">✊</span> <span>握拳 → 水印 💧</span>
+                </div>
+                <div className="glass-panel p-2 border border-cyan-500/30 flex items-center gap-2">
+                  <span className="text-2xl">☝️</span> <span>食指向上 → 雷印 ⚡</span>
+                </div>
+                <div className="glass-panel p-2 border border-green-500/30 flex items-center gap-2">
+                  <span className="text-2xl">👍</span> <span>拇指向上 → 风印 💨</span>
+                </div>
+                <div className="glass-panel p-2 border border-amber-500/30 col-span-2 flex items-center gap-2">
+                  <span className="text-2xl">✌️</span> <span>V字手势 → 土印 🗿</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 忍术说明 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-purple-400 mb-3">🔮 忍术释放</h3>
+              <div className="space-y-2 text-sm">
+                <div className="glass-panel p-2 border border-red-500/30">🔥 单火印 → 火遁·豪火球 (伤害30)</div>
+                <div className="glass-panel p-2 border border-blue-500/30">💧 单水印 → 水遁·水龙弹 (伤害35)</div>
+                <div className="glass-panel p-2 border border-cyan-500/30">⚡ 单雷印 → 雷遁·千鸟 (伤害50)</div>
+                <div className="glass-panel p-2 border border-green-500/30">💨 单风印 → 风遁·风刃 (伤害25)</div>
+                <div className="glass-panel p-2 border border-yellow-500/30">🔥+⚡ → 火遁·龙火 (伤害80)</div>
+              </div>
+            </div>
+
+            {/* 快捷键说明 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-yellow-400 mb-3">⌨️ 快捷键</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="glass-panel p-2 border border-gray-500/30">1-5 快速释放忍术</div>
+                <div className="glass-panel p-2 border border-gray-500/30">ESC 暂停/继续</div>
+                <div className="glass-panel p-2 border border-gray-500/30">M 静音/开启</div>
+                <div className="glass-panel p-2 border border-gray-500/30">R 重新开始</div>
+                <div className="glass-panel p-2 border border-gray-500/30">S 打开设置</div>
+                <div className="glass-panel p-2 border border-gray-500/30">C 清除手印</div>
+              </div>
+            </div>
+
+            {/* 游戏技巧 */}
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-green-400 mb-3">💡 游戏技巧</h3>
+              <div className="space-y-2 text-sm text-gray-300">
+                <div className="glass-panel p-2 border border-green-500/30">• 连击越高，分数加成越多</div>
+                <div className="glass-panel p-2 border border-green-500/30">• 10/25/50连击有额外奖励</div>
+                <div className="glass-panel p-2 border border-green-500/30">• 查克拉会自动恢复，合理分配</div>
+                <div className="glass-panel p-2 border border-green-500/30">• 可以在设置中调整游戏速度</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowHelp(false)}
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg font-bold transition-all"
+            >
+              知道了
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* v189: 关于页面 */}
+      {showAbout && (
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-black to-gray-900 flex items-center justify-center z-30">
+          <div className="text-white glass-panel p-8 border-2 border-purple-500/50 w-[600px] max-w-[90vw] text-center">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAbout(false)}
+                className="text-2xl hover:text-red-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <h1 className="text-5xl font-bold mb-4 text-orange-400" style={{ textShadow: '0 0 30px rgba(249, 115, 22, 0.8)' }}>
+              火影结印游戏
+            </h1>
+            <p className="text-2xl mb-6 text-gray-300">Naruto Seal Game</p>
+
+            <div className="text-lg mb-6">
+              <span className="text-purple-400 font-bold">版本:</span> {VERSION}
+            </div>
+
+            <div className="glass-panel p-6 border border-purple-500/30 mb-6 text-left">
+              <h3 className="text-xl font-bold text-yellow-400 mb-4 text-center">游戏介绍</h3>
+              <p className="text-gray-300 mb-4">
+                这是一款使用手势控制释放忍术的动作游戏。通过摄像头识别您的手势，结印后可以释放各种忍术来消灭敌人！
+              </p>
+              <p className="text-gray-300">
+                支持多种忍术组合，包括火遁、水遁、雷遁、风遁、土遁等，还有强大的组合忍术等你来发现！
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div className="glass-panel p-3 border border-blue-500/30">
+                <div className="text-blue-400 font-bold mb-1">技术栈</div>
+                <div className="text-gray-400">React + Three.js + MediaPipe</div>
+              </div>
+              <div className="glass-panel p-3 border border-green-500/30">
+                <div className="text-green-400 font-bold mb-1">手势识别</div>
+                <div className="text-gray-400">Google MediaPipe</div>
+              </div>
+              <div className="glass-panel p-3 border border-orange-500/30">
+                <div className="text-orange-400 font-bold mb-1">开发框架</div>
+                <div className="text-gray-400">Vite + TypeScript</div>
+              </div>
+              <div className="glass-panel p-3 border border-purple-500/30">
+                <div className="text-purple-400 font-bold mb-1">构建工具</div>
+                <div className="text-gray-400">Tailwind CSS</div>
+              </div>
+            </div>
+
+            <div className="text-gray-500 text-sm mb-6">
+              <p>感谢您的支持与喜爱！</p>
+              <p className="mt-2">祝您游戏愉快！</p>
+            </div>
+
+            <button
+              onClick={() => setShowAbout(false)}
+              className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-bold transition-all"
+            >
+              返回
+            </button>
           </div>
         </div>
       )}

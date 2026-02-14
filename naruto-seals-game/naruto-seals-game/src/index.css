@@ -1,0 +1,305 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+}
+
+/* 手印出现动画 */
+@keyframes sealPop {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.seal-pop {
+  animation: sealPop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Combo 弹跳动画 */
+@keyframes comboBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.3) rotate(-5deg);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  75% {
+    transform: scale(1.2) rotate(5deg);
+  }
+}
+
+.combo-bounce {
+  animation: comboBounce 0.5s ease-in-out;
+}
+
+/* 分数飞入动画 */
+@keyframes scoreFly {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.score-fly {
+  animation: scoreFly 0.3s ease-out;
+}
+
+/* 查克拉脉冲效果 */
+@keyframes chakraPulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(96, 165, 250, 0.6);
+  }
+}
+
+.chakra-pulse {
+  animation: chakraPulse 2s ease-in-out infinite;
+}
+
+/* 按钮发光效果 */
+@keyframes buttonGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(249, 115, 22, 0.5), 0 0 10px rgba(249, 115, 22, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.8), 0 0 40px rgba(249, 115, 22, 0.5);
+  }
+}
+
+.btn-glow {
+  animation: buttonGlow 1.5s ease-in-out infinite;
+}
+
+/* 标题闪烁效果 */
+@keyframes titleShine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.title-shine {
+  background: linear-gradient(
+    90deg,
+    #f97316 0%,
+    #fbbf24 25%,
+    #ffffff 50%,
+    #fbbf24 75%,
+    #f97316 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: titleShine 3s linear infinite;
+}
+
+/* 波次提示动画 */
+@keyframes waveAlert {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.wave-alert {
+  animation: waveAlert 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* 忍术释放闪光 */
+@keyframes jutsuFlash {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+.jutsu-flash {
+  animation: jutsuFlash 0.4s ease-out forwards;
+}
+
+/* 敌人出现动画 */
+@keyframes enemySpawn {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+/* UI 面板玻璃效果 */
+.glass-panel {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+/* 霓虹边框效果 */
+.neon-border {
+  box-shadow:
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    inset 0 0 5px rgba(255, 255, 255, 0.1);
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(249, 115, 22, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(249, 115, 22, 0.8);
+}
+
+/* 伤害数字动画 */
+@keyframes damageFloat {
+  0% {
+    transform: translateY(0) scale(0.5);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-30px) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-60px) scale(1);
+    opacity: 0;
+  }
+}
+
+.damage-float {
+  animation: damageFloat 1s ease-out forwards;
+  pointer-events: none;
+}
+
+/* 屏幕震动效果 */
+@keyframes screenShake {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-5px, -5px);
+  }
+  20% {
+    transform: translate(5px, -5px);
+  }
+  30% {
+    transform: translate(-5px, 5px);
+  }
+  40% {
+    transform: translate(5px, 5px);
+  }
+  50% {
+    transform: translate(-3px, -3px);
+  }
+  60% {
+    transform: translate(3px, -3px);
+  }
+  70% {
+    transform: translate(-3px, 3px);
+  }
+  80% {
+    transform: translate(3px, 3px);
+  }
+  90% {
+    transform: translate(-1px, -1px);
+  }
+}
+
+.screen-shake {
+  animation: screenShake 0.3s ease-out;
+}
+
+/* 忍术释放闪光 */
+@keyframes jutsuRelease {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+.jutsu-release {
+  animation: jutsuRelease 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* 波次提示 */
+@keyframes waveAnnounce {
+  0% {
+    transform: scale(0) rotate(-10deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.wave-announce {
+  animation: waveAnnounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}

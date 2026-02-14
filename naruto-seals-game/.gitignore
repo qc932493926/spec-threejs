@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -17,8 +18,52 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+=======
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
+dist/
+build/
+.cache/
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+>>>>>>> c8be82405561e9b61b8f7e0d7bb232eec51d94fa
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+<<<<<<< HEAD
+=======
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+
+# Git submodules (if any nested .git directories)
+# Comment out if you want to include submodules
+>>>>>>> c8be82405561e9b61b8f7e0d7bb232eec51d94fa

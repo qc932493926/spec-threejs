@@ -1,4 +1,5 @@
-import { useRef, useMemo, useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useRef, useMemo, useEffect, memo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Enemy, GameState, Jutsu, JutsuInstance } from '../types/index.ts';
@@ -8,7 +9,63 @@ import { audioService } from '../services/audioService';
 interface GameSceneProps {
   gameState: GameState;
   onGameStateUpdate: (state: Partial<GameState>) => void;
+  gameSpeed?: number; // v186: 游戏速度
 }
+
+// ==================== v42: 几何体池 - 复用几何体避免重复创建 ====================
+// 用于性能优化，后续版本启用
+/*
+class GeometryPool {
+  private static instance: GeometryPool;
+  private geometries: Map<string, THREE.BufferGeometry> = new Map();
+
+  static getInstance(): GeometryPool {
+    if (!GeometryPool.instance) {
+      GeometryPool.instance = new GeometryPool();
+    }
+    return GeometryPool.instance;
+  }
+
+  getOctahedron(size: number): THREE.OctahedronGeometry {
+    const key = `octahedron_${size}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.OctahedronGeometry(size, 0));
+    }
+    return this.geometries.get(key) as THREE.OctahedronGeometry;
+  }
+
+  getTetrahedron(size: number): THREE.TetrahedronGeometry {
+    const key = `tetrahedron_${size}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.TetrahedronGeometry(size, 0));
+    }
+    return this.geometries.get(key) as THREE.TetrahedronGeometry;
+  }
+
+  getBox(size: number): THREE.BoxGeometry {
+    const key = `box_${size}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.BoxGeometry(size, size, size));
+    }
+    return this.geometries.get(key) as THREE.BoxGeometry;
+  }
+
+  getSphere(radius: number, widthSegments: number = 32, heightSegments: number = 32): THREE.SphereGeometry {
+    const key = `sphere_${radius}_${widthSegments}_${heightSegments}`;
+    if (!this.geometries.has(key)) {
+      this.geometries.set(key, new THREE.SphereGeometry(radius, widthSegments, heightSegments));
+    }
+    return this.geometries.get(key) as THREE.SphereGeometry;
+  }
+
+  dispose(): void {
+    this.geometries.forEach(geo => geo.dispose());
+    this.geometries.clear();
+  }
+}
+
+const geometryPool = GeometryPool.getInstance();
+*/
 
 // 动态星空背景组件
 function Starfield() {
@@ -479,12 +536,19 @@ function ExplosionParticles({ position, color, onComplete }: { position: THREE.V
 }
 
 // 主游戏场景逻辑组件
-function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onGameStateUpdate: (state: Partial<GameState>) => void }) {
+function GameLogic({ gameState, onGameStateUpdate, gameSpeed = 1.0 }: {
+  gameState: GameState,
+  onGameStateUpdate: (state: Partial<GameState>) => void,
+  gameSpeed?: number
+}) {
   const enemySpawnTimerRef = useRef(0);
   const explosionsRef = useRef<Array<{ id: string, position: THREE.Vector3, color: THREE.Color }>>([]);
 
   useFrame((_, delta) => {
     if (gameState.isGameOver) return;
+
+    // v186: 应用游戏速度
+    const adjustedDelta = delta * gameSpeed;
 
     // 基于波次的难度调整 - 更平滑的曲线
     const wave = gameState.wave;
@@ -494,7 +558,7 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
     const enemySpeed = Math.min(4, 1.5 + wave * 0.15); // 波次越高，敌人越快
 
     // 生成敌人
-    enemySpawnTimerRef.current += delta;
+    enemySpawnTimerRef.current += adjustedDelta;
     if (enemySpawnTimerRef.current > spawnInterval && gameState.enemies.length < maxEnemies) {
       const newEnemy = createEnemy(enemyHealth, enemySpeed, wave);
       onGameStateUpdate({ enemies: [...gameState.enemies, newEnemy] });
@@ -624,12 +688,12 @@ function GameLogic({ gameState, onGameStateUpdate }: { gameState: GameState, onG
     if (gameState.chakra < gameState.maxChakra) {
       // 波次越高，恢复越快，让高波次也能持续战斗
       const chakraRegen = 2 + gameState.wave * 0.3;
-      updatedState.chakra = Math.min(gameState.chakra + delta * chakraRegen, gameState.maxChakra);
+      updatedState.chakra = Math.min(gameState.chakra + adjustedDelta * chakraRegen, gameState.maxChakra);
     }
 
     // Combo计时器减少
     if (gameState.comboTimer > 0) {
-      const newComboTimer = gameState.comboTimer - delta;
+      const newComboTimer = gameState.comboTimer - adjustedDelta;
       if (newComboTimer <= 0) {
         updatedState.combo = 0;
         updatedState.comboTimer = 0;
@@ -741,7 +805,8 @@ function createEnemy(health: number = 100, speed: number = 2, wave: number = 1):
 }
 
 // 主场景组件
-export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpdate }) => {
+// v190: 使用 memo 优化组件
+export const GameScene: React.FC<GameSceneProps> = memo(({ gameState, onGameStateUpdate, gameSpeed = 1.0 }) => {
 
   // 检测手印并发射忍术
   useEffect(() => {
@@ -794,7 +859,7 @@ export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpda
         <Starfield />
 
         {/* 游戏逻辑 */}
-        <GameLogic gameState={gameState} onGameStateUpdate={onGameStateUpdate} />
+        <GameLogic gameState={gameState} onGameStateUpdate={onGameStateUpdate} gameSpeed={gameSpeed} />
 
         {/* 渲染敌人 */}
         {gameState.enemies.map(enemy => (
@@ -808,4 +873,4 @@ export const GameScene: React.FC<GameSceneProps> = ({ gameState, onGameStateUpda
       </Canvas>
     </div>
   );
-};
+});
