@@ -540,3 +540,44 @@ body {
 .tip-blink {
   animation: tipBlink 2s ease-in-out infinite;
 }
+
+/* v191: 移动端触摸优化 */
+@media (max-width: 768px) {
+  /* 触摸区域增大 */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  /* 禁用双击缩放 */
+  * {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 更大的触摸目标 */
+  .glass-panel {
+    padding: 1rem;
+  }
+
+  /* 调整字体大小 */
+  .text-xl {
+    font-size: 1.1rem;
+  }
+
+  .text-2xl {
+    font-size: 1.3rem;
+  }
+}
+
+/* 触摸友好 */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* 禁止选中 */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}

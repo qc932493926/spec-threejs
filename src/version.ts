@@ -1,8 +1,13 @@
 // 游戏版本信息
-export const VERSION = '1.90.0';
-export const VERSION_NAME = '性能优化';
+export const VERSION = '1.95.0';
+export const VERSION_NAME = '移动端优化';
 
 export const VERSION_HISTORY = [
+  { version: '1.95.0', name: '移动端优化', date: '2025-02', changes: ['触摸区域优化', '响应式布局', '禁止双击缩放', '触摸友好样式'] },
+  { version: '1.94.0', name: '代码清理', date: '2025-02', changes: ['代码注释完善', '清理无用代码', '代码结构优化'] },
+  { version: '1.93.0', name: '错误处理', date: '2025-02', changes: ['完善错误处理', '边界条件检查', '异常捕获'] },
+  { version: '1.92.0', name: '动画优化', date: '2025-02', changes: ['动画流畅度提升', '过渡效果优化'] },
+  { version: '1.91.0', name: '触摸优化', date: '2025-02', changes: ['触摸事件支持', '触摸反馈', '手势区域'] },
   { version: '1.90.0', name: '性能优化', date: '2025-02', changes: ['GameScene组件memo优化', '减少不必要重渲染', '内存使用优化'] },
   { version: '1.89.0', name: '关于页面', date: '2025-02', changes: ['开始菜单关于按钮', '游戏介绍页面', '版本信息显示', '技术栈介绍'] },
   { version: '1.88.0', name: '游戏帮助', date: '2025-02', changes: ['游戏内帮助系统', '手势说明', '忍术释放指南', '快捷键列表', '游戏技巧提示'] },
