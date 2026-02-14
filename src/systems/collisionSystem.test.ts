@@ -38,7 +38,8 @@ describe('CollisionSystem - 碰撞和打击反馈', () => {
       health: 3,
       maxHealth: 3,
       size: 1,
-      wave: 1
+      wave: 1,
+      type: 'basic'
     };
 
     test('敌人受到伤害后减血', () => {
@@ -67,7 +68,8 @@ describe('CollisionSystem - 碰撞和打击反馈', () => {
       health: 3,
       maxHealth: 3,
       size: 1,
-      wave: 1
+      wave: 1,
+      type: 'basic'
     };
 
     test('敌人被击中时闪白', () => {

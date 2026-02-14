@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 
 /**
- * 敌人实体接口
+ * v182: 敌人类型扩展
  */
+export type EnemyType = 'basic' | 'fast' | 'tank' | 'flying' | 'splitting' | 'stealth' | 'exploder' | 'summoner';
+
 /**
  * 敌人实体接口
  */
@@ -14,6 +16,7 @@ export interface Enemy {
   maxHealth: number;
   size: number;
   wave: number;
+  type: EnemyType; // v182: 使用新的敌人类型
   // v174新增：Boss系统
   isBoss?: boolean;
   bossType?: BossType;
@@ -21,6 +24,17 @@ export interface Enemy {
   skillCooldowns?: Record<string, number>;
   armor?: number; // 护甲值
   shield?: number; // 护盾值
+  // v182新增：特殊敌人属性
+  canFly?: boolean; // 飞行敌人
+  canSplit?: boolean; // 分裂敌人
+  splitCount?: number; // 分裂数量
+  isInvisible?: boolean; // 隐形敌人
+  invisibilityDuration?: number; // 隐形持续时间
+  explosionDamage?: number; // 自爆伤害
+  explosionRadius?: number; // 自爆范围
+  canSummon?: boolean; // 召唤师敌人
+  summonCount?: number; // 召唤数量
+  summonCooldown?: number; // 召唤冷却
 }
 
 
@@ -151,6 +165,7 @@ export function createBoss(bossType: BossType, wave: number): Enemy {
     maxHealth: config.health,
     size: config.size,
     wave,
+    type: 'basic' as EnemyType, // Boss使用基础类型
     isBoss: true,
     bossType,
     bossSkills: config.skills,
@@ -258,8 +273,9 @@ export function getWaveConfig(wave: number): WaveConfig {
  * @param options 创建选项
  * @returns 敌人实体
  */
-export function createEnemy(options: { wave: number }): Enemy {
+export function createEnemy(options: { wave: number; type?: EnemyType }): Enemy {
   const config = getWaveConfig(options.wave);
+  const enemyType = options.type || getRandomEnemyType(options.wave);
 
   // 从右侧生成（x=15）
   const xPosition = 15;
@@ -267,22 +283,219 @@ export function createEnemy(options: { wave: number }): Enemy {
   // Y轴随机位置（-5到5）
   const yPosition = (Math.random() - 0.5) * 10;
 
-  // Z轴固定在0
-  const zPosition = 0;
+  // Z轴固定在0，飞行敌人在更高位置
+  const zPosition = enemyType === 'flying' ? 2 : 0;
 
   // 向左移动，速度为wave配置的速度
   const velocityX = -config.speed;
 
-  return {
+  // 基础敌人
+  const baseEnemy: Enemy = {
     id: `enemy-${Date.now()}-${Math.random()}`,
     position: new THREE.Vector3(xPosition, yPosition, zPosition),
     velocity: new THREE.Vector3(velocityX, 0, 0),
     health: config.health,
     maxHealth: config.health,
     size: config.size,
-    wave: options.wave
+    wave: options.wave,
+    type: enemyType,
   };
+
+  // 根据敌人类型应用特殊属性
+  return applyEnemyTypeModifiers(baseEnemy, enemyType, config);
 }
+
+/**
+ * v182: 根据波次随机选择敌人类型
+ */
+function getRandomEnemyType(wave: number): EnemyType {
+  // 基础敌人类型权重
+  const weights: { type: EnemyType; weight: number; minWave: number }[] = [
+    { type: 'basic', weight: 50, minWave: 1 },
+    { type: 'fast', weight: 25, minWave: 2 },
+    { type: 'tank', weight: 15, minWave: 3 },
+    { type: 'flying', weight: 10, minWave: 4 },
+    { type: 'splitting', weight: 8, minWave: 5 },
+    { type: 'stealth', weight: 5, minWave: 6 },
+    { type: 'exploder', weight: 5, minWave: 7 },
+    { type: 'summoner', weight: 3, minWave: 8 },
+  ];
+
+  // 过滤掉当前波次不可用的敌人类型
+  const available = weights.filter(w => wave >= w.minWave);
+  const totalWeight = available.reduce((sum, w) => sum + w.weight, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const w of available) {
+    random -= w.weight;
+    if (random <= 0) {
+      return w.type;
+    }
+  }
+
+  return 'basic';
+}
+
+/**
+ * v182: 应用敌人类型修饰符
+ */
+function applyEnemyTypeModifiers(enemy: Enemy, type: EnemyType, config: WaveConfig): Enemy {
+  switch (type) {
+    case 'basic':
+      // 基础敌人 - 无特殊属性
+      break;
+
+    case 'fast':
+      // 快速敌人 - 速度快但血量低
+      enemy.velocity.x *= 1.8;
+      enemy.health = Math.floor(config.health * 0.6);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 0.8;
+      break;
+
+    case 'tank':
+      // 坦克敌人 - 速度慢但血量高
+      enemy.velocity.x *= 0.5;
+      enemy.health = Math.floor(config.health * 3);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 1.5;
+      enemy.armor = 5;
+      break;
+
+    case 'flying':
+      // 飞行敌人 - 在空中移动，Y轴波动
+      enemy.canFly = true;
+      enemy.velocity.x *= 1.2;
+      enemy.velocity.y = Math.sin(Date.now() * 0.001) * 2;
+      enemy.health = Math.floor(config.health * 0.8);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 0.9;
+      break;
+
+    case 'splitting':
+      // 分裂敌人 - 死亡时分裂成小敌人
+      enemy.canSplit = true;
+      enemy.splitCount = 3;
+      enemy.health = Math.floor(config.health * 1.5);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 1.2;
+      break;
+
+    case 'stealth':
+      // 隐形敌人 - 周期性隐形
+      enemy.isInvisible = false;
+      enemy.invisibilityDuration = 3000;
+      enemy.velocity.x *= 1.3;
+      enemy.health = Math.floor(config.health * 0.7);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 0.85;
+      break;
+
+    case 'exploder':
+      // 自爆敌人 - 接近玩家时爆炸
+      enemy.explosionDamage = config.health * 2;
+      enemy.explosionRadius = 5;
+      enemy.velocity.x *= 1.5;
+      enemy.health = Math.floor(config.health * 0.5);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 0.9;
+      break;
+
+    case 'summoner':
+      // 召唤师敌人 - 召唤小敌人
+      enemy.canSummon = true;
+      enemy.summonCount = 2;
+      enemy.summonCooldown = 5000;
+      enemy.velocity.x *= 0.6;
+      enemy.health = Math.floor(config.health * 2);
+      enemy.maxHealth = enemy.health;
+      enemy.size *= 1.3;
+      enemy.skillCooldowns = { summon: 0 };
+      break;
+  }
+
+  return enemy;
+}
+
+/**
+ * v182: 创建分裂后的小敌人
+ */
+export function createSplitEnemies(parent: Enemy): Enemy[] {
+  if (!parent.canSplit || !parent.splitCount) return [];
+
+  const children: Enemy[] = [];
+  for (let i = 0; i < parent.splitCount; i++) {
+    const angle = (i / parent.splitCount) * Math.PI * 2;
+    const offset = new THREE.Vector3(
+      Math.cos(angle) * 0.5,
+      Math.sin(angle) * 0.5,
+      0
+    );
+
+    const child: Enemy = {
+      id: `enemy-split-${Date.now()}-${i}`,
+      position: parent.position.clone().add(offset),
+      velocity: new THREE.Vector3(
+        parent.velocity.x * 1.2,
+        Math.sin(angle) * 2,
+        0
+      ),
+      health: Math.floor(parent.maxHealth * 0.3),
+      maxHealth: Math.floor(parent.maxHealth * 0.3),
+      size: parent.size * 0.6,
+      wave: parent.wave,
+      type: 'basic',
+    };
+    children.push(child);
+  }
+
+  return children;
+}
+
+/**
+ * v182: 创建被召唤的敌人
+ */
+export function createSummonedEnemies(summoner: Enemy): Enemy[] {
+  if (!summoner.canSummon || !summoner.summonCount) return [];
+
+  const summoned: Enemy[] = [];
+  for (let i = 0; i < summoner.summonCount; i++) {
+    const angle = (i / summoner.summonCount) * Math.PI * 2;
+    const offset = new THREE.Vector3(
+      Math.cos(angle) * 2,
+      Math.sin(angle) * 2,
+      0
+    );
+
+    const minion: Enemy = {
+      id: `enemy-summon-${Date.now()}-${i}`,
+      position: summoner.position.clone().add(offset),
+      velocity: new THREE.Vector3(summoner.velocity.x * 1.5, 0, 0),
+      health: Math.floor(summoner.maxHealth * 0.2),
+      maxHealth: Math.floor(summoner.maxHealth * 0.2),
+      size: summoner.size * 0.5,
+      wave: summoner.wave,
+      type: 'fast',
+    };
+    summoned.push(minion);
+  }
+
+  return summoned;
+}
+
+/**
+ * v182: 敌人类型配置（用于UI显示）
+ */
+export const enemyTypeConfigs: Record<EnemyType, { name: string; color: number; description: string }> = {
+  basic: { name: '基础忍者', color: 0xff4444, description: '普通敌人' },
+  fast: { name: '疾风忍者', color: 0x00ffff, description: '移动速度快' },
+  tank: { name: '重装忍者', color: 0x44ff44, description: '高血量高护甲' },
+  flying: { name: '飞天忍者', color: 0xff88ff, description: '空中移动' },
+  splitting: { name: '分裂忍者', color: 0xffff00, description: '死亡时分裂' },
+  stealth: { name: '暗影忍者', color: 0x888888, description: '周期性隐形' },
+  exploder: { name: '爆裂忍者', color: 0xff8800, description: '接近时爆炸' },
+  summoner: { name: '通灵忍者', color: 0x8800ff, description: '召唤小敌人' },
+};
 
 /**
  * 敌人生成器类
