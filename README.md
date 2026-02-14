@@ -54,6 +54,8 @@ npm run deploy
 ### 2. Naruto Seals Game
 火影忍者结印识别游戏，基于 Three.js + MediaPipe 手势识别。
 
+**在线预览**: (即将部署)
+
 **本地运行**:
 ```bash
 cd naruto-seals-game

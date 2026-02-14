@@ -7,7 +7,8 @@ pnpm-lock.yaml
 # Build output
 dist/
 build/
-.cache/
+dist-ssr/
+.caches/
 *.tgz
 
 # IDE
@@ -25,10 +26,13 @@ Thumbs.db
 nul
 
 # Logs
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Environment variables
 .env
@@ -40,5 +44,8 @@ yarn-error.log*
 *.temp
 .temp/
 
-# Git submodules (if any nested .git directories)
-# Comment out if you want to include submodules
+# Editor directories and files
+!.vscode/extensions.json
+
+# Local files
+*.local
